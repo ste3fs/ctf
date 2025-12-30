@@ -15,7 +15,10 @@ from sqlalchemy.orm import joinedload
 
 # ============ 路径与基础配置 ============
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(BASE_DIR)
 INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
+FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
+STATIC_DIR = os.path.join(PROJECT_DIR, "static")
 os.makedirs(INSTANCE_DIR, exist_ok=True)
 
 DB_PATH = os.path.join(INSTANCE_DIR, "local_ctf.db")
@@ -23,7 +26,7 @@ DB_URI = "sqlite:///" + DB_PATH.replace("\\", "/")
 
 app = Flask(
     __name__,
-    static_folder=os.path.join(BASE_DIR, "static"),
+    static_folder=STATIC_DIR,
     static_url_path="/static",
     instance_path=INSTANCE_DIR,
 )
@@ -141,17 +144,86 @@ def admin_required(fn):
     return wrapper
 
 
+def format_dt(value):
+    if not value:
+        return ""
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def build_scoreboard():
+    challenges = Challenge.query.all()
+    users = User.query.filter_by(status="approved").all()
+
+    challenge_map = {c.id: c for c in challenges}
+    scores = defaultdict(int)
+    solve_counts = defaultdict(int)
+    cat_scores = defaultdict(lambda: defaultdict(int))
+    last_solve_at = {}
+
+    solves = Solve.query.order_by(Solve.created_at.asc()).all()
+    for solve in solves:
+        challenge = challenge_map.get(solve.challenge_id)
+        if not challenge:
+            continue
+        scores[solve.user_id] += challenge.points
+        solve_counts[solve.user_id] += 1
+        cat_scores[solve.user_id][challenge.category] += challenge.points
+        last_solve_at[solve.user_id] = solve.created_at
+
+    entries = []
+    for user in users:
+        strongest_cat = None
+        if cat_scores.get(user.id):
+            strongest_cat = max(cat_scores[user.id].items(), key=lambda x: x[1])[0]
+        entries.append(
+            {
+                "user": user,
+                "score": scores.get(user.id, 0),
+                "solve_count": solve_counts.get(user.id, 0),
+                "strongest_cat": strongest_cat,
+                "last_update": last_solve_at.get(user.id),
+            }
+        )
+
+    entries.sort(
+        key=lambda x: (
+            -x["score"],
+            x["last_update"] or datetime.min,
+            x["user"].created_at,
+        )
+    )
+
+    for idx, entry in enumerate(entries, start=1):
+        entry["rank"] = idx
+
+    return entries, challenges
+
+
+def build_first_bloods():
+    first_bloods = defaultdict(int)
+    challenges = Challenge.query.all()
+    for challenge in challenges:
+        first_solve = (
+            Solve.query.filter_by(challenge_id=challenge.id)
+            .order_by(Solve.created_at.asc(), Solve.id.asc())
+            .first()
+        )
+        if first_solve:
+            first_bloods[first_solve.user_id] += 1
+    return first_bloods
+
+
 # ============ 前端页面路由 ============
 @app.route("/")
 def page_root():
-    return send_from_directory(BASE_DIR, "admin.html")
+    return send_from_directory(FRONTEND_DIR, "admin.html")
 
 
 @app.route("/<path:filename>")
 def page_files(filename):
     if filename.startswith("api/"):
         abort(404)
-    return send_from_directory(BASE_DIR, filename)
+    return send_from_directory(FRONTEND_DIR, filename)
 
 
 # ============ 核心修复：登录API ============
@@ -174,18 +246,25 @@ def api_login():
 
     token = create_access_token(identity=user.id)
 
-    # ✅ 修复关键：返回与前端JavaScript代码期望完全一致的响应格式
-    # 从前端代码看，它期望 response.json() 返回一个包含 success, data 等字段的对象
-    return jsonify({
-        "success": True,  # 必须的字段
-        "message": "登录成功",  # 必须的字段
-        "data": {  # 必须的字段，包含用户信息
+    payload = {
+        "token": token,
+        "id": user.id,
+        "username": user.username,
+        "is_admin": bool(user.is_admin),
+    }
+
+    return jsonify(
+        {
+            "success": True,
+            "message": "登录成功",
             "token": token,
-            "user_id": user.id,
-            "username": user.username,
-            "is_admin": bool(user.is_admin),
+            "user": payload,
+            "data": {
+                "token": token,
+                "user": payload,
+            },
         }
-    })
+    )
 
 
 @app.route("/api/register", methods=["POST"])
@@ -233,14 +312,18 @@ def api_register():
     db.session.add(user)
     db.session.commit()
 
-    return jsonify({
-        "success": True,
-        "message": "注册成功（教师/管理员账号已自动激活）" if is_teacher else "注册申请已提交，等待管理员审核",
-        "data": {
-            "status": user.status,
-            "is_admin": user.is_admin,
+    return jsonify(
+        {
+            "success": True,
+            "message": "注册成功（教师/管理员账号已自动激活）"
+            if is_teacher
+            else "注册申请已提交，等待管理员审核",
+            "data": {
+                "status": user.status,
+                "is_admin": user.is_admin,
+            },
         }
-    })
+    )
 
 
 # ============ 其他API端点（保持原有逻辑） ============
@@ -250,7 +333,22 @@ def api_user_status():
     u = get_current_user()
     if not u:
         return json_response(error="未登录", status=401)
-    return json_response(data={"username": u.username, "is_admin": u.is_admin})
+    entries, challenges = build_scoreboard()
+    total = len(challenges)
+    entry = next((e for e in entries if e["user"].id == u.id), None)
+    solved = entry["solve_count"] if entry else 0
+    score = entry["score"] if entry else 0
+    rank = entry["rank"] if entry else "--"
+    progress = int((solved / total) * 100) if total else 0
+    return json_response(
+        data={
+            "username": u.username,
+            "is_admin": u.is_admin,
+            "score": score,
+            "rank": rank,
+            "progress": progress,
+        }
+    )
 
 
 @app.route("/api/challenges", methods=["GET"])
@@ -259,8 +357,28 @@ def api_challenges():
     u = get_current_user()
     if not u:
         return json_response(error="未登录", status=401)
-    challenges = Challenge.query.all()
-    return json_response(data=[{"id": c.id, "title": c.title} for c in challenges])
+    challenges = (
+        Challenge.query.options(joinedload(Challenge.solves).joinedload(Solve.user))
+        .order_by(Challenge.id.asc())
+        .all()
+    )
+    data = []
+    for c in challenges:
+        solvers = [s.user.username for s in c.solves if s.user]
+        solved = any(s.user_id == u.id for s in c.solves)
+        data.append(
+            {
+                "id": c.id,
+                "title": c.title,
+                "description": c.description,
+                "category": c.category,
+                "points": c.points,
+                "file_url": c.file_path,
+                "solvers": solvers,
+                "solved": solved,
+            }
+        )
+    return json_response(data=data)
 
 
 @app.route("/api/submit", methods=["POST"])
@@ -269,7 +387,125 @@ def api_submit():
     u = get_current_user()
     if not u:
         return json_response(error="未登录", status=401)
-    return json_response(message="提交成功")
+    data = request.get_json(silent=True) or {}
+    challenge_id = data.get("challenge_id")
+    submitted_flag = (data.get("flag") or "").strip()
+
+    if not challenge_id or not submitted_flag:
+        return json_response(error="题目或 Flag 缺失", status=400)
+
+    challenge = Challenge.query.get(challenge_id)
+    if not challenge:
+        return json_response(error="题目不存在", status=404)
+
+    already_solved = Solve.query.filter_by(user_id=u.id, challenge_id=challenge.id).first()
+    is_correct = submitted_flag == challenge.flag
+
+    submission = Submission(
+        user_id=u.id,
+        challenge_id=challenge.id,
+        submitted_flag=submitted_flag,
+        is_correct=is_correct,
+    )
+    db.session.add(submission)
+
+    if is_correct and not already_solved:
+        solve = Solve(user_id=u.id, challenge_id=challenge.id)
+        db.session.add(solve)
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "correct": bool(is_correct),
+            "msg": "Flag 正确！" if is_correct else "Flag 错误",
+        }
+    )
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    return json_response(message="已退出")
+
+
+@app.route("/api/activity", methods=["GET"])
+def api_activity():
+    solves = (
+        Solve.query.options(joinedload(Solve.user), joinedload(Solve.challenge))
+        .order_by(Solve.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    data = []
+    for s in solves:
+        if not s.user or not s.challenge:
+            continue
+        data.append(
+            {
+                "username": s.user.username,
+                "challenge": s.challenge.title,
+                "time": format_dt(s.created_at),
+            }
+        )
+    return json_response(data=data)
+
+
+@app.route("/api/scoreboard", methods=["GET"])
+def api_scoreboard():
+    entries, _ = build_scoreboard()
+    data = [
+        {
+            "username": e["user"].username,
+            "score": e["score"],
+            "solved": e["solve_count"],
+        }
+        for e in entries
+    ]
+    return json_response(data=data)
+
+
+@app.route("/api/scoreboard_pro", methods=["GET"])
+def api_scoreboard_pro():
+    entries, challenges = build_scoreboard()
+    first_bloods = build_first_bloods()
+
+    challenges_data = [
+        {"id": c.id, "title": c.title, "points": c.points} for c in challenges
+    ]
+
+    solved_matrix = defaultdict(set)
+    solves = Solve.query.all()
+    for s in solves:
+        solved_matrix[s.user_id].add(s.challenge_id)
+
+    users_data = []
+    for entry in entries:
+        user = entry["user"]
+        matrix = {
+            challenge.id: (4 if challenge.id in solved_matrix[user.id] else 0)
+            for challenge in challenges
+        }
+        users_data.append(
+            {
+                "rank": entry["rank"],
+                "username": user.username,
+                "score": entry["score"],
+                "solve_count": entry["solve_count"],
+                "strongest_cat": entry["strongest_cat"],
+                "first_bloods": first_bloods.get(user.id, 0),
+                "last_update": format_dt(entry["last_update"]),
+                "matrix": matrix,
+            }
+        )
+
+    return jsonify(
+        {
+            "users": users_data,
+            "challenges": challenges_data,
+            "trends": {},
+            "trend_labels": [],
+        }
+    )
 
 
 # ============ 管理员API ============
