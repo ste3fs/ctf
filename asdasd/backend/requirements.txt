@@ -1,0 +1,12 @@
+# asdasd/backend/requirements.txt
+Flask>=2.2,<3.0
+Flask-SQLAlchemy>=3.0,<4.0
+Flask-JWT-Extended>=4.4,<5.0
+Flask-Cors>=3.0,<4.0
+Werkzeug>=2.2,<3.0
+SQLAlchemy>=1.4,<2.0
+
+# Optional (deployment/development)
+# python-dotenv>=0.21,<1.0    # load config from .env if needed
+# gunicorn>=20.1,<21.0        # production WSGI server
+# pytest>=7.0,<8.0            # testing
