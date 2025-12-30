@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>SDHGCTF | 全场解题位图</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050b1a;
+            --panel: #0a162e;
+            --accent: #00d4ff;
+            --border: #1a3a5a;
+        }
+        body {
+            background: var(--bg);
+            color: #ffffff;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 30px;
+            /* 为固定的导航栏留出顶部空间 */
+            padding-top: 80px;
+            overflow-x: hidden;
+        }
+        .header-area { text-align: center; margin-bottom: 30px; }
+        .header-area h2 { font-weight: 900; letter-spacing: 8px; color: #fff; text-shadow: 0 0 15px var(--accent); }
+
+        /* --- 矩阵表格核心样式 --- */
+        .matrix-container {
+            background: rgba(10, 22, 46, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .matrix-table-wrapper {
+            overflow-x: auto; /* 只有这个容器可以横向滚动 */
+        }
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* <-- 核心：强制浏览器使用固定布局 */
+        }
+
+        /* 表头 */
+        .matrix-table thead tr { background: #0f2444; }
+        .matrix-table th {
+            border: 1px solid var(--border);
+            padding: 10px 5px;
+            text-align: center;
+            vertical-align: bottom;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+        .v-text {
+            writing-mode: vertical-lr;
+
+            max-height: 100px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        /* 数据行 */
+        .matrix-table td {
+            border: 1px solid var(--border);
+            text-align: center;
+            vertical-align: middle;
+            height: 45px;
+            padding: 0 5px;
+            /* 核心：处理长文本的省略号 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* --- 核心修复：更精确的列宽控制 --- */
+        .rank-col { width: 70px; }
+        .name-col {
+            width: 160px; /* <-- 核心：给一个固定的、较窄的宽度 */
+            text-align: left !important;
+            padding-left: 15px !important;
+            font-weight: bold;
+        }
+        .score-col { width: 90px; font-family: monospace; font-weight: bold; color: var(--accent); }
+        .solves-col { width: 80px; font-family: monospace; }
+        .chal-col { width: 45px; } /* 题目列的宽度 */
+
+        /* 图标 */
+        .fa-award.gold { color: #ffcc00; font-size: 1.1rem; filter: drop-shadow(0 0 4px #ffcc00); }
+        .fa-award.silver { color: #e5e7eb; font-size: 1rem; }
+        .fa-award.bronze { color: #cd7f32; font-size: 0.9rem; }
+        .fa-flag.solved { color: #38bdf8; }
+        .dot { color: #1a3a5a; font-size: 0.4rem; }
+
+        .refresh-tag { position: fixed; bottom: 15px; right: 20px; font-size: 0.7rem; color: #475569; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 悬浮导航栏 -->
+    <nav class="navbar navbar-dark fixed-top" style="background: rgba(5, 11, 26, 0.8); backdrop-filter: blur(10px);">
+        <div class="container-fluid">
+            <!-- 左侧：返回主页 -->
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-arrow-left me-2"></i> 返回主菜单
+            </a>
+
+            <!-- 中间：当前页面标题 -->
+            <span class="navbar-text fw-bold" style="font-size: 1.2rem; color: #00d4ff; text-shadow: 0 0 10px #00d4ff;">
+                全场解题位图
+            </span>
+
+            <!-- 右侧：切换按钮与时间 -->
+            <div class="d-flex align-items-center">
+                <a href="scoreboard.html" class="btn btn-outline-light btn-sm me-3">
+                    <i class="fas fa-trophy me-1"></i> 切换至荣誉榜
+                </a>
+                <span id="current-time" class="navbar-text" style="font-family: monospace;"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 2. 页面主要内容 -->
+    <div class="header-area">
+        <p class="text-info mb-1 small">LIVE SOLVE MATRIX</p>
+        <h2>解题位图控制台</h2>
+    </div>
+
+    <div class="matrix-container shadow-lg">
+        <div class="matrix-table-wrapper">
+            <table class="matrix-table">
+                <thead id="m-head"></thead>
+                <tbody id="m-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="refresh-tag"><i class="fas fa-sync fa-spin me-1"></i> 数据每 30 秒自动同步一次</div>
+
+    <!-- 3. 所有 JavaScript 脚本放在 body 结尾 -->
+    <script>
+        // 更新时间的功能
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('zh-CN', { hour12: false });
+            const timeEl = document.getElementById('current-time');
+            if (timeEl) timeEl.innerText = timeString;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // ============================
+        // ✅ 关键修复 1：补齐 apiFetch
+        // ✅ 关键修复 2：API_BASE 自动适配 63342/5000 两种打开方式
+        // ============================
+        const API_PORT = 5000;
+        const API_HOST = (location.port === String(API_PORT))
+          ? `${location.protocol}//${location.host}`
+          : `${location.protocol}//${location.hostname}:${API_PORT}`;
+        const API_BASE = `${API_HOST}/api`;
+
+        function getToken(){
+          return localStorage.getItem('ctf_token') || '';
+        }
+
+        async function apiFetch(url, options = {}) {
+          // url 可传完整，也可传 /xxx 或 xxx
+          const target = url.startsWith('http')
+            ? url
+            : (url.startsWith('/') ? `${API_BASE}${url}` : `${API_BASE}/${url}`);
+
+          const method = (options.method || 'GET').toUpperCase();
+          const headers = Object.assign({}, (options.headers || {}));
+
+          // GET 不加 Content-Type，避免预检
+          if(!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD'){
+            headers['Content-Type'] = 'application/json';
+          }
+
+          // 位图页本身不需要登录也能看，但有 token 就顺带带上（不影响）
+          const token = getToken();
+          if(token){
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          return fetch(target, Object.assign({}, options, { headers, cache: 'no-store' }));
+        }
+
+        function renderEmpty(msg){
+          const head = document.getElementById('m-head');
+          const body = document.getElementById('m-body');
+          head.innerHTML = `<tr>
+            <th class="rank-col">RANK</th>
+            <th class="name-col text-start ps-3">CONTESTANT</th>
+            <th class="score-col">SCORE</th>
+            <th class="solves-col">SOLVES</th>
+          </tr>`;
+          body.innerHTML = `<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">${msg}</td></tr>`;
+        }
+
+        async function updateMatrix() {
+            try {
+                const res = await apiFetch('/scoreboard_pro');
+                if(!res.ok){
+                  renderEmpty(`矩阵数据加载失败：HTTP ${res.status}`);
+                  return;
+                }
+
+                const data = await res.json().catch(()=>null);
+                if (!data || !data.users || !data.challenges) {
+                  renderEmpty('矩阵数据为空（API 返回结构不正确）');
+                  return;
+                }
+
+                const head = document.getElementById('m-head');
+                const body = document.getElementById('m-body');
+
+                // 1. 渲染表头，并应用列宽 class
+                let hHtml = `<tr>
+                    <th class="rank-col">RANK</th>
+                    <th class="name-col text-start ps-3">CONTESTANT</th>
+                    <th class="score-col">SCORE</th>
+                    <th class="solves-col">SOLVES</th>`;
+                data.challenges.forEach(c => {
+                    hHtml += `<th class="chal-col"><div class="v-text">${c.title}</div><div class="small opacity-75">${c.points}</div></th>`;
+                });
+                head.innerHTML = hHtml + `</tr>`;
+
+                // 2. 渲染选手数据，并应用列宽 class
+                body.innerHTML = data.users.map(u => {
+                    let rowHtml = `<tr>
+                        <td class="rank-col"><span class="badge bg-dark border">${u.rank}</span></td>
+                        <td class="name-col"><i class="fas fa-user-circle me-2 opacity-50"></i>${u.username}</td>
+                        <td class="score-col">${u.score}</td>
+                        <td class="solves-col">${u.solve_count}</td>`;
+
+                    data.challenges.forEach(c => {
+                        const status = (u.matrix && u.matrix[c.id]) ? u.matrix[c.id] : 0;
+                        let icon = '';
+                        if(status === 1) icon = '<i class="fas fa-award gold"></i>';
+                        else if(status === 2) icon = '<i class="fas fa-award silver"></i>';
+                        else if(status === 3) icon = '<i class="fas fa-award bronze"></i>';
+                        else if(status === 4) icon = '<i class="fas fa-flag solved"></i>';
+                        else icon = '<i class="fas fa-circle dot"></i>';
+                        rowHtml += `<td class="chal-col">${icon}</td>`;
+                    });
+                    return rowHtml + `</tr>`;
+                }).join('');
+
+            } catch (e) {
+              console.error("矩阵数据加载失败:", e);
+              renderEmpty('矩阵数据加载失败（请打开 F12 控制台看报错）');
+            }
+        }
+
+        // 初始渲染占位，避免空白
+        renderEmpty('加载中...');
+        updateMatrix();
+        setInterval(updateMatrix, 30000);
+    </script>
+
+</body>
+</html>

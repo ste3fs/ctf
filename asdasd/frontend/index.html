@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SDHGCTF | 题目大厅</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    :root{
+      --bg0:#050b1a;
+      --bg1:#081a2f;
+      --glass: rgba(255,255,255,.08);
+      --stroke: rgba(255,255,255,.18);
+      --accent:#00d4ff;
+      --accent2:#7c4dff;
+      --good:#2ee59d;
+      --warn:#ffb020;
+      --danger:#ff4d6d;
+      --text:#e9f2ff;
+      --muted: rgba(233,242,255,.65);
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+    }
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(900px 500px at 15% 20%, rgba(0,212,255,.18), transparent 60%),
+        radial-gradient(700px 500px at 85% 30%, rgba(124,77,255,.18), transparent 60%),
+        radial-gradient(800px 600px at 40% 90%, rgba(255,77,109,.12), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      color: var(--text);
+      overflow-x:hidden;
+    }
+    .noise:before{
+      content:"";
+      position:fixed; inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+      opacity:.10; pointer-events:none;
+      mix-blend-mode: overlay;
+    }
+    .glass{
+      background: var(--glass);
+      border:1px solid var(--stroke);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+    }
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 12px 0;
+      background: rgba(5,11,26,.55);
+      backdrop-filter: blur(14px);
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      user-select:none;
+    }
+    .brand .logo{
+      width:42px; height:42px; border-radius:14px;
+      display:grid; place-items:center;
+      background: linear-gradient(135deg, rgba(0,212,255,.35), rgba(124,77,255,.35));
+      border:1px solid var(--stroke);
+    }
+    .brand .title{
+      font-weight: 800;
+      letter-spacing:.5px;
+      margin:0;
+      line-height:1.15;
+    }
+    .brand small{ color:var(--muted); }
+    .btn-soft{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.14);
+      color: var(--text);
+    }
+    .btn-soft:hover{ filter:brightness(1.06); color:var(--text); }
+    .stat{
+      padding: 14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .stat .k{ color:var(--muted); font-size:.9rem; }
+    .stat .v{
+      font-size:1.5rem;
+      font-weight:800;
+      color: var(--accent);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .progress-wrap{
+      height:10px;
+      background: rgba(255,255,255,.10);
+      border-radius: 999px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .progress-barx{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(0,212,255,.95), rgba(124,77,255,.95));
+      border-radius: 999px;
+      transition: width .35s ease;
+    }
+    .cat-pill{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:.55rem .9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.14);
+      color: var(--muted);
+      cursor: pointer;
+      user-select:none;
+    }
+    .cat-pill.active{
+      color: var(--text);
+      border-color: rgba(0,212,255,.45);
+      background: rgba(0,212,255,.10);
+      box-shadow: 0 0 0 .25rem rgba(0,212,255,.10);
+    }
+    .challenge-card{
+      padding: 16px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      height: 100%;
+    }
+    .challenge-card:hover{
+      transform: translateY(-3px);
+      border-color: rgba(0,212,255,.35);
+      box-shadow: 0 18px 45px rgba(0,0,0,.35);
+    }
+    .badge-soft{
+      background: rgba(0,212,255,.10);
+      border:1px solid rgba(0,212,255,.25);
+      color: var(--accent);
+      font-weight:700;
+    }
+    .badge-solved{
+      background: rgba(46,229,157,.10);
+      border:1px solid rgba(46,229,157,.25);
+      color: var(--good);
+      font-weight:700;
+    }
+    .side-title{
+      font-weight: 800;
+      letter-spacing:.3px;
+      margin-bottom: 10px;
+    }
+    .list-item{
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      margin-bottom: 10px;
+    }
+    .muted{ color: var(--muted); }
+    .modal-content{
+      background: rgba(5,11,26,.85);
+      border:1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(18px);
+      color: var(--text);
+    }
+    .form-control{
+      background: rgba(5,11,26,.65);
+      border:1px solid rgba(255,255,255,.14);
+      color: var(--text);
+    }
+    .form-control:focus{
+      background: rgba(5,11,26,.8);
+      border-color: rgba(0,212,255,.55);
+      box-shadow: 0 0 0 .25rem rgba(0,212,255,.12);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body class="noise">
+  <div class="topbar">
+    <div class="container-fluid px-3 px-lg-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="brand">
+          <div class="logo"><i class="fa-solid fa-shield-halved"></i></div>
+          <div>
+            <div class="title">山东化工网络安全 CTF</div>
+            <small>题目大厅 · 实时动态 · 玻璃拟态</small>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="btn btn-soft btn-sm">
+            <i class="fa-solid fa-user-ninja me-2"></i><span id="nav-username">--</span>
+          </span>
+          <a class="btn btn-soft btn-sm" href="matrix.html"><i class="fa-solid fa-th me-2"></i>解题位图</a>
+          <a class="btn btn-soft btn-sm" href="scoreboard.html"><i class="fa-solid fa-trophy me-2"></i>荣誉榜</a>
+          <a id="btn-admin" class="btn btn-soft btn-sm d-none" href="admin.html"><i class="fa-solid fa-user-gear me-2"></i>管理员</a>
+          <button class="btn btn-soft btn-sm" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-2"></i>退出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid px-3 px-lg-4 py-4">
+    <div class="row g-4">
+      <div class="col-lg-9">
+        <div class="glass p-3">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+              <div class="stat">
+                <div class="k"><i class="fa-solid fa-coins me-2"></i>我的当前积分</div>
+                <div class="v" id="ui-score">0</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat">
+                <div class="k"><i class="fa-solid fa-ranking-star me-2"></i>实时排名</div>
+                <div class="v" id="ui-rank">--</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat">
+                <div class="k"><i class="fa-solid fa-chart-line me-2"></i>解题任务进度</div>
+                <div class="mt-2 progress-wrap">
+                  <div class="progress-barx" id="ui-progressbar"></div>
+                </div>
+                <div class="mt-2 muted"><span id="ui-progress">0</span>%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass p-3 mt-4">
+          <div class="d-flex flex-wrap gap-2">
+            <div class="cat-pill active" data-cat="0" onclick="setCategory(0)"><i class="fa-solid fa-layer-group"></i>全部题目</div>
+            <div class="cat-pill" data-cat="1" onclick="setCategory(1)"><i class="fa-solid fa-puzzle-piece"></i>MISC</div>
+            <div class="cat-pill" data-cat="2" onclick="setCategory(2)"><i class="fa-solid fa-wave-square"></i>流量分析</div>
+            <div class="cat-pill" data-cat="3" onclick="setCategory(3)"><i class="fa-solid fa-globe"></i>Web</div>
+            <div class="cat-pill" data-cat="4" onclick="setCategory(4)"><i class="fa-solid fa-terminal"></i>REVERSE</div>
+          </div>
+        </div>
+
+        <div class="mt-4" id="challenges-container">
+          <div class="glass p-4 text-center muted">
+            <i class="fa-solid fa-spinner fa-spin me-2"></i>正在加载题目...
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3">
+        <div class="glass p-3">
+          <div class="side-title"><i class="fa-solid fa-bolt me-2"></i>实时动态</div>
+          <div id="activity-list" class="mt-2">
+            <div class="muted">加载中...</div>
+          </div>
+        </div>
+        <div class="glass p-3 mt-4">
+          <div class="side-title"><i class="fa-solid fa-crown me-2"></i>Top 5 榜单</div>
+          <div id="leaderboard-list" class="mt-2">
+            <div class="muted">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 题目详情模态框 -->
+  <div class="modal fade" id="challengeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <div>
+            <h5 class="modal-title mb-1" id="m-title">题目</h5>
+            <div class="muted small">
+              <span class="badge badge-soft me-2" id="m-points">0 pts</span>
+              <span class="badge badge-soft" id="m-cat">-</span>
+              <span class="badge badge-solved ms-2 d-none" id="m-solved"><i class="fa-solid fa-check me-1"></i>已完成</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-0">
+          <div class="glass p-3 mb-3" style="background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.10);">
+            <div class="muted small mb-2"><i class="fa-solid fa-file-lines me-2"></i>题目描述</div>
+            <div id="m-desc" style="white-space:pre-wrap;"></div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <a id="m-download" class="btn btn-soft btn-sm d-none" target="_blank">
+              <i class="fa-solid fa-download me-2"></i>下载附件
+            </a>
+            <span class="btn btn-soft btn-sm">
+              <i class="fa-solid fa-people-group me-2"></i>Top Solvers:
+              <span id="m-solvers" class="ms-1 muted">--</span>
+            </span>
+          </div>
+          <div class="glass p-3" style="background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.10);">
+            <div class="muted small mb-2"><i class="fa-solid fa-flag-checkered me-2"></i>提交 Flag</div>
+            <div class="input-group">
+              <input id="m-flag" class="form-control" placeholder="flag{...}">
+              <button id="m-submit" class="btn btn-soft" onclick="submitFlag()"><i class="fa-solid fa-paper-plane me-2"></i>提交</button>
+            </div>
+            <div class="muted small mt-2">提示：Flag 区分大小写，请完整粘贴。</div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-soft" data-bs-dismiss="modal">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ==================== 配置 ====================
+  const API_PORT = 5000;
+  const API_HOST = (location.port === String(API_PORT))
+    ? `${location.protocol}//${location.host}`
+    : `${location.protocol}//${location.hostname}:${API_PORT}`;
+  const API_BASE = `${API_HOST}/api`;
+
+  // ==================== Token 管理 ====================
+  function getToken() {
+    return localStorage.getItem('ctf_token') || '';
+  }
+
+  // ==================== API 请求封装 ====================
+  async function apiFetch(url, options = {}) {
+    const target = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = Object.assign({}, (options.headers || {}));
+
+    if (!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD') {
+      headers['Content-Type'] = 'application/json';
+    }
+    const token = getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(target, Object.assign({}, options, { headers }));
+  }
+
+  async function authFetch(url, options = {}) {
+    const resp = await apiFetch(url, options);
+    if (resp.status === 401 || resp.status === 422) {
+      localStorage.clear();
+      await Swal.fire({
+        icon: 'warning',
+        title: '登录已过期',
+        text: '请重新登录',
+        background: '#0a162e',
+        color: '#fff'
+      });
+      window.location.href = 'login.html';
+      throw new Error('Auth expired');
+    }
+    return resp;
+  }
+
+  function unwrap(json) {
+    return (json && json.data !== undefined) ? json.data : json;
+  }
+
+  // ==================== 全局变量 ====================
+  const categories = {
+    1: 'MISC',
+    2: '流量分析',
+    3: 'Web',
+    4: 'REVERSE'
+  };
+  let currentCat = 0;
+  let allChallenges = [];
+  let currentChallenge = null;
+
+  // ==================== 认证检查 ====================
+  function checkAuth() {
+    const token = localStorage.getItem('ctf_token');
+    const username = localStorage.getItem('username');
+    if (!token || !username) {
+      window.location.href = 'login.html';
+      return false;
+    }
+    document.getElementById('nav-username').textContent = username;
+    const isAdmin = localStorage.getItem('is_admin') === '1';
+    if (isAdmin) {
+      document.getElementById('btn-admin').classList.remove('d-none');
+    }
+    return true;
+  }
+
+  // ==================== 工具函数 ====================
+  function escapeHtml(str) {
+    return String(str || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", "&#039;");
+  }
+
+  function setCategory(cat) {
+    currentCat = cat;
+    document.querySelectorAll('.cat-pill').forEach(p => {
+      p.classList.toggle('active', p.getAttribute('data-cat') == String(cat));
+    });
+    renderChallenges();
+  }
+
+  // ==================== 渲染题目 ====================
+  function renderChallenges() {
+    const container = document.getElementById('challenges-container');
+    if (!Array.isArray(allChallenges) || allChallenges.length === 0) {
+      container.innerHTML = `<div class="glass p-4 text-center muted">暂无题目数据</div>`;
+      return;
+    }
+    let html = '';
+    Object.entries(categories).forEach(([id, name]) => {
+      if (currentCat !== 0 && String(currentCat) !== String(id)) return;
+      const list = allChallenges.filter(c => c.category === name);
+      if (list.length === 0) return;
+
+      html += `
+        <div class="mb-3 mt-2">
+          <div class="muted small text-uppercase" style="letter-spacing:2px">${name}</div>
+        </div>
+        <div class="row g-3 mb-4">
+      `;
+      list.forEach(ch => {
+        const solvers = ch.solvers || [];
+        const solverText = solvers.length
+          ? solvers.map(s => `<span class="badge badge-soft me-1">${escapeHtml(s)}</span>`).join('')
+          : `<span class="muted">暂无</span>`;
+        const solvedBadge = ch.solved
+          ? `<span class="badge badge-solved ms-2"><i class="fa-solid fa-check me-1"></i>已完成</span>`
+          : '';
+
+        html += `
+          <div class="col-md-6 col-xl-4">
+            <div class="challenge-card" onclick="openModal(${ch.id})">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="fw-bold fs-5">${escapeHtml(ch.title)}</div>
+                <span class="badge badge-soft">${ch.points} pts</span>
+              </div>
+              <div class="mt-2 small muted">
+                <i class="fa-solid fa-users me-2"></i>${solverText}
+                ${solvedBadge}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    });
+    container.innerHTML = html || `<div class="glass p-4 text-center muted">该分类暂无题目</div>`;
+  }
+
+  // ==================== 数据加载 ====================
+  async function loadChallenges() {
+    const resp = await authFetch('/challenges');
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(json.msg || json.message || '加载题目失败');
+    }
+    allChallenges = unwrap(json);
+    renderChallenges();
+  }
+
+  async function loadUserStatus() {
+    const resp = await authFetch('/user_status');
+    const json = await resp.json().catch(() => ({}));
+    const data = unwrap(json);
+    document.getElementById('ui-score').textContent = data.score ?? 0;
+    document.getElementById('ui-rank').textContent = data.rank ?? '--';
+    const p = data.progress ?? 0;
+    document.getElementById('ui-progress').textContent = p;
+    document.getElementById('ui-progressbar').style.width = `${p}%`;
+  }
+
+  async function loadActivity() {
+    const resp = await apiFetch('/activity');
+    const json = await resp.json().catch(() => ({}));
+    const data = unwrap(json);
+    const box = document.getElementById('activity-list');
+    if (!Array.isArray(data) || data.length === 0) {
+      box.innerHTML = `<div class="muted">暂无动态</div>`;
+      return;
+    }
+    box.innerHTML = data.map(x => `
+      <div class="list-item">
+        <div class="small"><i class="fa-solid fa-user-ninja me-2"></i>${escapeHtml(x.username)}</div>
+        <div class="small muted"><i class="fa-solid fa-flag me-2"></i>${escapeHtml(x.challenge)}</div>
+        <div class="small muted"><i class="fa-regular fa-clock me-2"></i>${escapeHtml(x.time)}</div>
+      </div>
+    `).join('');
+  }
+
+  async function loadLeaderboardTop5() {
+    const resp = await apiFetch('/scoreboard');
+    const json = await resp.json().catch(() => ({}));
+    const data = unwrap(json);
+    const box = document.getElementById('leaderboard-list');
+    if (!Array.isArray(data) || data.length === 0) {
+      box.innerHTML = `<div class="muted">暂无数据</div>`;
+      return;
+    }
+    const top = data.slice(0, 5);
+    box.innerHTML = top.map((u, idx) => `
+      <div class="list-item d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-bold">${idx + 1}. ${escapeHtml(u.username)}</div>
+          <div class="small muted">解题 ${u.solved || 0}</div>
+        </div>
+        <div class="fw-bold" style="color:var(--accent)">${u.score || 0}</div>
+      </div>
+    `).join('');
+  }
+
+  // ==================== 模态框 ====================
+  function openModal(cid) {
+    const ch = allChallenges.find(x => x.id === cid);
+    if (!ch) return;
+    currentChallenge = ch;
+
+    document.getElementById('m-title').textContent = ch.title;
+    document.getElementById('m-desc').textContent = ch.description || '';
+    document.getElementById('m-points').textContent = `${ch.points} pts`;
+    document.getElementById('m-cat').textContent = ch.category || '-';
+
+    const solvers = ch.solvers || [];
+    document.getElementById('m-solvers').textContent = solvers.length ? solvers.join(' / ') : '暂无';
+
+    const solved = !!ch.solved;
+    document.getElementById('m-solved').classList.toggle('d-none', !solved);
+    document.getElementById('m-submit').disabled = solved;
+
+    const download = document.getElementById('m-download');
+    if (ch.file_url) {
+      let url = ch.file_url;
+      if (url.startsWith('/static/')) {
+        url = `${API_HOST}${url}`;
+      }
+      download.href = url;
+      download.classList.remove('d-none');
+    } else {
+      download.classList.add('d-none');
+    }
+
+    document.getElementById('m-flag').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('challengeModal'));
+    modal.show();
+  }
+
+  // ==================== 提交 Flag ====================
+  async function submitFlag() {
+    if (!currentChallenge) return;
+    const flag = document.getElementById('m-flag').value.trim();
+    if (!flag) {
+      return Swal.fire({ icon: 'warning', title: '请输入 Flag', background: '#0a162e', color: '#fff' });
+    }
+
+    const btn = document.getElementById('m-submit');
+    btn.disabled = true;
+
+    try {
+      const resp = await authFetch('/submit', {
+        method: 'POST',
+        body: JSON.stringify({ challenge_id: currentChallenge.id, flag })
+      });
+      const json = await resp.json().catch(() => ({}));
+
+      if (resp.ok && json.correct) {
+        await Swal.fire({
+          icon: 'success',
+          title: '🎉 恭喜！',
+          text: json.msg || 'Flag 正确！',
+          background: '#0a162e',
+          color: '#fff'
+        });
+        bootstrap.Modal.getInstance(document.getElementById('challengeModal'))?.hide();
+        await safeRun(loadChallenges);
+        await safeRun(loadUserStatus);
+        await safeRun(loadLeaderboardTop5);
+        await safeRun(loadActivity);
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: '提交失败',
+          text: json.msg || 'Flag 错误',
+          background: '#0a162e',
+          color: '#fff'
+        });
+        btn.disabled = false;
+      }
+    } catch (e) {
+      btn.disabled = false;
+    }
+  }
+
+  // ==================== 退出登录 ====================
+  async function logout() {
+    try {
+      await apiFetch('/logout', { method: 'POST' });
+    } catch (e) {}
+    localStorage.clear();
+    window.location.href = 'login.html';
+  }
+
+  // ==================== 安全执行 ====================
+  async function safeRun(fn) {
+    try { await fn(); } catch (e) { console.error(e); }
+  }
+
+  // ==================== 启动 ====================
+  async function boot() {
+    if (!checkAuth()) return;
+
+    try {
+      await loadUserStatus();
+      await loadChallenges();
+      await loadLeaderboardTop5();
+      await loadActivity();
+    } catch (e) {
+      console.error(e);
+      Swal.fire({
+        icon: 'error',
+        title: '加载失败',
+        text: String(e.message || e),
+        background: '#0a162e',
+        color: '#fff'
+      });
+    }
+
+    // 定时刷新
+    setInterval(() => safeRun(loadUserStatus), 10000);
+    setInterval(() => safeRun(loadActivity), 15000);
+    setInterval(() => safeRun(loadLeaderboardTop5), 15000);
+    setInterval(() => safeRun(loadChallenges), 20000);
+  }
+
+  window.addEventListener('DOMContentLoaded', boot);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
