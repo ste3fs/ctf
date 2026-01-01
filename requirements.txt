@@ -1,0 +1,11 @@
+Flask==2.0.3
+Flask-SQLAlchemy==2.5.1
+Flask-JWT-Extended==4.3.1
+Flask-CORS==3.0.10
+Werkzeug==2.0.3
+itsdangerous==2.0.1
+Jinja2==3.0.3
+MarkupSafe==2.0.1
+PyJWT==2.3.0
+SQLAlchemy==1.4.46
+click==8.0.4
