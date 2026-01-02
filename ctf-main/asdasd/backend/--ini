@@ -1,0 +1,485 @@
+*** Starting uWSGI 2.0.31 (64bit) on [Wed Dec 31 18:25:38 2025] ***
+compiled with version: 4.8.5 20150623 (Red Hat 4.8.5-44) on 31 December 2025 10:14:52
+os: Linux-3.10.0-1160.119.1.el7.x86_64 #1 SMP Tue Jun 4 14:43:51 UTC 2024
+nodename: iZgr570h0whfruZ
+machine: x86_64
+clock source: unix
+pcre jit disabled
+detected number of CPU cores: 2
+current working directory: /www/wwwroot/ctf-main/asdasd/backend
+writing pidfile to /www/server/python_project/vhost/pids/backend.pid
+detected binary path: /usr/local/bin/uwsgi
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+chdir() to /www/wwwroot/ctf-main/asdasd/backend
+your processes number limit is 14500
+your memory page size is 4096 bytes
+detected max file descriptor number: 1024
+lock engine: pthread robust mutexes
+thunder lock: disabled (you can enable it with --thunder-lock)
+uWSGI http bound on 0.0.0.0:5000 fd 4
+uwsgi socket 0 bound to TCP address 127.0.0.1:41198 (port auto-assigned) fd 3
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+Python version: 3.6.8 (default, Nov 14 2023, 16:29:52)  [GCC 4.8.5 20150623 (Red Hat 4.8.5-44)]
+Python main interpreter initialized at 0x16e57f0
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+python threads support enabled
+your server socket listen backlog is limited to 100 connections
+your mercy for graceful operations on workers is 60 seconds
+mapped 250128 bytes (244 KB) for 4 cores
+*** Operational MODE: preforking+threaded ***
+WSGI app 0 (mountpoint='') ready in 0 seconds on interpreter 0x16e57f0 pid: 13674 (default app)
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+*** uWSGI is running in multiple interpreter mode ***
+spawned uWSGI master process (pid: 13674)
+spawned uWSGI worker 1 (pid: 13678, cores: 2)
+spawned uWSGI worker 2 (pid: 13680, cores: 2)
+spawned uWSGI http 1 (pid: 13681)
+[pid: 13680|app: 0|req: 1/1] 112.224.205.196 () {42 vars in 954 bytes} [Wed Dec 31 18:25:43 2025] GET /login.html => generated 0 bytes in 5 msecs (HTTP/1.1 304) 4 headers in 173 bytes (0 switches on core 0)
+[2025-12-31 18:25:51,941] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 13680|app: 0|req: 2/2] 112.224.205.196 () {44 vars in 844 bytes} [Wed Dec 31 18:25:51 2025] POST /api/login => generated 290 bytes in 39 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 1)
+[pid: 13678|app: 0|req: 1/3] 112.224.205.196 () {38 vars in 848 bytes} [Wed Dec 31 18:26:04 2025] GET / => generated 17592 bytes in 6 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[2025-12-31 18:26:08,627] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 13680|app: 0|req: 3/4] 112.224.205.196 () {44 vars in 834 bytes} [Wed Dec 31 18:26:08 2025] POST /api/login => generated 290 bytes in 4 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 0)
+[pid: 13680|app: 0|req: 4/5] 112.224.205.196 () {38 vars in 876 bytes} [Wed Dec 31 18:32:35 2025] GET /api/scoreboard => generated 46 bytes in 12 msecs (HTTP/1.1 200) 3 headers in 103 bytes (1 switches on core 1)
+[pid: 13680|app: 0|req: 5/6] 112.224.205.196 () {42 vars in 934 bytes} [Wed Dec 31 18:33:34 2025] GET / => generated 17592 bytes in 1 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[2025-12-31 18:33:40,528] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 13680|app: 0|req: 6/7] 112.224.205.196 () {44 vars in 834 bytes} [Wed Dec 31 18:33:40 2025] POST /api/login => generated 290 bytes in 3 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 1)
+[pid: 13680|app: 0|req: 7/8] 112.224.205.196 () {42 vars in 934 bytes} [Wed Dec 31 18:35:46 2025] GET / => generated 0 bytes in 1 msecs (HTTP/1.1 304) 4 headers in 173 bytes (0 switches on core 0)
+SIGINT/SIGTERM received...killing workers...
+gateway "uWSGI http 1" has been buried (pid: 13681)
+worker 1 buried after 1 seconds
+worker 2 buried after 1 seconds
+goodbye to uWSGI.
+VACUUM: pidfile removed.
+*** Starting uWSGI 2.0.31 (64bit) on [Wed Dec 31 19:42:35 2025] ***
+compiled with version: 4.8.5 20150623 (Red Hat 4.8.5-44) on 31 December 2025 10:14:52
+os: Linux-3.10.0-1160.119.1.el7.x86_64 #1 SMP Tue Jun 4 14:43:51 UTC 2024
+nodename: iZgr570h0whfruZ
+machine: x86_64
+clock source: unix
+pcre jit disabled
+detected number of CPU cores: 2
+current working directory: /www/wwwroot/ctf-main/asdasd/backend
+writing pidfile to /www/server/python_project/vhost/pids/backend.pid
+detected binary path: /usr/local/bin/uwsgi
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+chdir() to /www/wwwroot/ctf-main/asdasd/backend
+your processes number limit is 14500
+your memory page size is 4096 bytes
+detected max file descriptor number: 65535
+lock engine: pthread robust mutexes
+thunder lock: disabled (you can enable it with --thunder-lock)
+uWSGI http bound on 0.0.0.0:5000 fd 4
+uwsgi socket 0 bound to TCP address 127.0.0.1:44885 (port auto-assigned) fd 3
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+Python version: 3.6.8 (default, Nov 14 2023, 16:29:52)  [GCC 4.8.5 20150623 (Red Hat 4.8.5-44)]
+Python main interpreter initialized at 0x10400f0
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+python threads support enabled
+your server socket listen backlog is limited to 100 connections
+your mercy for graceful operations on workers is 60 seconds
+mapped 250128 bytes (244 KB) for 4 cores
+*** Operational MODE: preforking+threaded ***
+WSGI app 0 (mountpoint='') ready in 1 seconds on interpreter 0x10400f0 pid: 20041 (default app)
+uWSGI running as root, you can use --uid/--gid/--chroot options
+*** WARNING: you are running uWSGI as root !!! (use the --uid flag) *** 
+*** uWSGI is running in multiple interpreter mode ***
+spawned uWSGI master process (pid: 20041)
+spawned uWSGI worker 1 (pid: 20046, cores: 2)
+spawned uWSGI worker 2 (pid: 20048, cores: 2)
+spawned uWSGI http 1 (pid: 20049)
+[pid: 20048|app: 0|req: 1/1] 127.0.0.1 () {50 vars in 1140 bytes} [Wed Dec 31 19:43:51 2025] GET / => generated 17592 bytes in 5 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[pid: 20048|app: 0|req: 2/2] 127.0.0.1 () {48 vars in 1051 bytes} [Wed Dec 31 19:43:51 2025] GET /favicon.ico => generated 232 bytes in 1 msecs (HTTP/1.1 404) 3 headers in 119 bytes (1 switches on core 1)
+[pid: 20048|app: 0|req: 3/3] 112.224.205.196 () {44 vars in 772 bytes} [Wed Dec 31 19:43:56 2025] OPTIONS /api/login => generated 0 bytes in 1 msecs (HTTP/1.1 200) 7 headers in 296 bytes (0 switches on core 0)
+[2025-12-31 19:43:56,639] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20048|app: 0|req: 4/4] 112.224.205.196 () {42 vars in 701 bytes} [Wed Dec 31 19:43:56 2025] POST /api/login => generated 290 bytes in 38 msecs (HTTP/1.1 500) 4 headers in 164 bytes (1 switches on core 1)
+[pid: 20048|app: 0|req: 5/5] 59.82.83.212 () {30 vars in 465 bytes} [Wed Dec 31 19:52:28 2025] GET / => generated 17592 bytes in 1 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[pid: 20048|app: 0|req: 6/6] 127.0.0.1 () {40 vars in 602 bytes} [Wed Dec 31 19:52:28 2025] GET / => generated 17592 bytes in 1 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 1)
+[pid: 20048|app: 0|req: 7/7] 127.0.0.1 () {40 vars in 624 bytes} [Wed Dec 31 19:52:28 2025] GET /favicon.ico => generated 232 bytes in 0 msecs (HTTP/1.1 404) 3 headers in 119 bytes (1 switches on core 0)
+[pid: 20048|app: 0|req: 8/8] 127.0.0.1 () {42 vars in 611 bytes} [Wed Dec 31 20:16:35 2025] GET / => generated 17592 bytes in 1 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 1)
+[pid: 20048|app: 0|req: 9/9] 112.224.205.196 () {44 vars in 772 bytes} [Wed Dec 31 20:19:41 2025] OPTIONS /api/login => generated 0 bytes in 1 msecs (HTTP/1.1 200) 7 headers in 296 bytes (0 switches on core 0)
+[2025-12-31 20:19:42,028] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20046|app: 0|req: 1/10] 112.224.205.196 () {42 vars in 701 bytes} [Wed Dec 31 20:19:41 2025] POST /api/login => generated 290 bytes in 55 msecs (HTTP/1.1 500) 4 headers in 164 bytes (1 switches on core 0)
+[pid: 20048|app: 0|req: 10/11] 127.0.0.1 () {42 vars in 605 bytes} [Wed Dec 31 20:34:08 2025] GET / => generated 17592 bytes in 1 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 1)
+[pid: 20046|app: 0|req: 2/12] 127.0.0.1 () {44 vars in 684 bytes} [Wed Dec 31 20:35:30 2025] OPTIONS / => generated 0 bytes in 0 msecs (HTTP/1.1 200) 4 headers in 137 bytes (0 switches on core 1)
+[pid: 20048|app: 0|req: 11/13] 127.0.0.1 () {28 vars in 298 bytes} [Wed Dec 31 20:39:18 2025] HEAD / => generated 0 bytes in 1 msecs (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[pid: 20048|app: 0|req: 12/14] 103.172.183.81 () {40 vars in 1047 bytes} [Wed Dec 31 20:39:51 2025] GET / => generated 0 bytes in 1 msecs (HTTP/1.1 304) 4 headers in 173 bytes (0 switches on core 1)
+[pid: 20048|app: 0|req: 13/15] 103.172.183.81 () {38 vars in 950 bytes} [Wed Dec 31 20:39:52 2025] GET /favicon.ico => generated 232 bytes in 0 msecs (HTTP/1.1 404) 3 headers in 119 bytes (1 switches on core 0)
+[2025-12-31 20:39:57,581] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20048|app: 0|req: 14/16] 103.172.183.81 () {44 vars in 978 bytes} [Wed Dec 31 20:39:57 2025] POST /api/login => generated 290 bytes in 3 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 1)
+[2025-12-31 20:40:10,433] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20046|app: 0|req: 3/17] 103.172.183.81 () {44 vars in 978 bytes} [Wed Dec 31 20:40:10 2025] POST /api/login => generated 290 bytes in 3 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 0)
+[pid: 20046|app: 0|req: 4/18] 127.0.0.1 () {28 vars in 298 bytes} [Wed Dec 31 20:40:24 2025] HEAD / => generated 0 bytes in 2 msecs (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 1)
+[pid: 20048|app: 0|req: 15/19] 47.110.71.219 () {28 vars in 306 bytes} [Wed Dec 31 20:40:28 2025] HEAD / => generated 0 bytes in 1 msecs (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[pid: 20048|app: 0|req: 16/20] 127.0.0.1 () {28 vars in 298 bytes} [Wed Dec 31 20:41:05 2025] HEAD / => generated 0 bytes in 1 msecs (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 1)
+[pid: 20048|app: 0|req: 17/21] 127.0.0.1 () {32 vars in 368 bytes} [Wed Dec 31 20:49:50 2025] POST /api/login => generated 90 bytes in 3 msecs (HTTP/1.1 401) 3 headers in 113 bytes (1 switches on core 0)
+[2025-12-31 20:59:34,543] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20048|app: 0|req: 18/22] 103.172.183.81 () {44 vars in 998 bytes} [Wed Dec 31 20:59:34 2025] POST /api/login => generated 290 bytes in 3 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 1)
+[pid: 20048|app: 0|req: 19/23] 103.172.183.81 () {42 vars in 1098 bytes} [Wed Dec 31 20:59:46 2025] GET / => generated 18279 bytes in 1 msecs via sendfile() (HTTP/1.1 200) 7 headers in 272 bytes (0 switches on core 0)
+[2025-12-31 20:59:51,619] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20048|app: 0|req: 20/24] 103.172.183.81 () {44 vars in 998 bytes} [Wed Dec 31 20:59:51 2025] POST /api/login => generated 290 bytes in 3 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 1)
+[2025-12-31 21:00:10,930] ERROR in app: Exception on /api/login [POST]
+Traceback (most recent call last):
+  File "/usr/lib64/python3.6/hashlib.py", line 178, in __hash_new
+    name, data, usedforsecurity=usedforsecurity)
+ValueError: unsupported hash type scrypt:32768:8:1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib64/python3.6/site-packages/flask_cors/extension.py", line 165, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.6/site-packages/flask/app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "./app.py", line 269, in api_login
+    if not user or not check_password_hash(user.password_hash, password):
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 219, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+  File "/usr/local/lib/python3.6/site-packages/werkzeug/security.py", line 167, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+  File "/usr/lib64/python3.6/hmac.py", line 185, in new
+    return HMAC(key, msg, digestmod)
+  File "/usr/lib64/python3.6/hmac.py", line 63, in __init__
+    self.outer = self.digest_cons()
+  File "/usr/lib64/python3.6/hmac.py", line 59, in <lambda>
+    self.digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+  File "/usr/lib64/python3.6/hashlib.py", line 189, in __hash_new
+    return __get_builtin_constructor(name)(data, **kwargs)
+  File "/usr/lib64/python3.6/hashlib.py", line 120, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+[pid: 20048|app: 0|req: 21/25] 103.172.183.81 () {44 vars in 997 bytes} [Wed Dec 31 21:00:10 2025] POST /api/login => generated 290 bytes in 3 msecs (HTTP/1.1 500) 4 headers in 169 bytes (1 switches on core 0)
+SIGINT/SIGTERM received...killing workers...
+gateway "uWSGI http 1" has been buried (pid: 20049)
+worker 1 buried after 1 seconds
+worker 2 buried after 1 seconds
+goodbye to uWSGI.
+VACUUM: pidfile removed.
