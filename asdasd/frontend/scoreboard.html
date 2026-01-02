@@ -1,371 +1,893 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>SDHGCTF | 荣誉大屏</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SDHGCTF | 荣誉大屏</title>
 
-    <!-- ✅ CDN 加速：bootcdn/cdnjs 换成 jsDelivr -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <!-- CDN 资源 -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net/" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net/">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
+  <!-- ✅ Chart.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ==================== 🎨 CSS 变量 ==================== */
+    :root {
+      --bg-primary: #050b1a;
+      --bg-secondary: #081a2f;
+      --bg-tertiary: #0a1f3a;
+      --glass-light: rgba(255, 255, 255, 0.09);
+      --glass-medium: rgba(255, 255, 255, 0.06);
+      --glass-dark: rgba(255, 255, 255, 0.03);
+      --border-light: rgba(255, 255, 255, 0.18);
+      --border-medium: rgba(255, 255, 255, 0.12);
+      --border-dark: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00d4ff;
+      --accent-purple: #7c4dff;
+      --accent-gold: #ffd700;
+      --accent-silver: #e5e7eb;
+      --accent-bronze: #cd7f32;
+      --text-primary: #e9f2ff;
+      --text-secondary: rgba(233, 242, 255, 0.75);
+      --text-muted: rgba(233, 242, 255, 0.55);
+      --shadow-lg: 0 20px 70px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.35);
+      --shadow-sm: 0 8px 25px rgba(0, 0, 0, 0.22);
+    }
 
-    <style>
-        :root {
-            --bg: #020612;
-            --panel: #0a162e;
-            --accent: #00d4ff;
-            --gold: #ffd700;
-        }
-        body {
-            background: var(--bg);
-            color: white;
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            padding: 20px;
-            padding-top: 80px;
-            overflow-x: hidden;
-        }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .contest-main-title {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 2rem;
-            font-weight: 900;
-            letter-spacing: 10px;
-            background: linear-gradient(to right, #00d4ff, #fff, #00d4ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
-            white-space: nowrap;
-        }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 500px at 15% 20%, rgba(0, 212, 255, 0.18), transparent 60%),
+        radial-gradient(700px 500px at 85% 30%, rgba(124, 77, 255, 0.18), transparent 60%),
+        radial-gradient(800px 600px at 40% 90%, rgba(255, 77, 109, 0.12), transparent 60%),
+        linear-gradient(180deg, var(--bg-primary), var(--bg-secondary) 60%, var(--bg-tertiary));
+      color: var(--text-primary);
+      font-family: 'Segoe UI', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 20px;
+      padding-top: 90px;
+      overflow-x: hidden;
+    }
 
-        .trend-box {
-            background: rgba(10, 22, 46, 0.6);
-            border: 1px solid #1a3a5a;
-            border-radius: 8px;
-            padding: 20px;
-            height: 380px;
-            margin-bottom: 40px;
-            box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.1);
-        }
+    /* 噪点纹理 */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+      opacity: 0.09;
+      pointer-events: none;
+      mix-blend-mode: overlay;
+      z-index: 2;
+    }
 
-        .pro-table-container {
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid #1a3a5a;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
-        }
-        .pro-table {
-            margin-bottom: 0;
-            background: #050b1a;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
+    /* 极光层 */
+    .aurora-layer {
+      position: fixed;
+      inset: -22vh -22vw;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.55;
+      filter: blur(46px) saturate(160%);
+      mix-blend-mode: screen;
+      background:
+        radial-gradient(60% 50% at 20% 30%, rgba(0,212,255,.32), transparent 60%),
+        radial-gradient(55% 45% at 78% 28%, rgba(124,77,255,.30), transparent 62%),
+        radial-gradient(50% 40% at 35% 78%, rgba(0,212,255,.22), transparent 62%),
+        radial-gradient(48% 40% at 85% 80%, rgba(124,77,255,.20), transparent 62%);
+      animation: auroraFloat 14s ease-in-out infinite alternate;
+      will-change: transform;
+    }
 
-        .pro-table thead tr {
-            background: linear-gradient(to right, #0055ff, #00d4ff);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .pro-table th {
-            border: none !important;
-            padding: 18px 10px !important;
-            text-align: center;
-            color: white;
-            font-size: 0.85rem;
-        }
+    .aurora-layer.layer2 {
+      opacity: 0.42;
+      filter: blur(62px) saturate(170%);
+      animation-duration: 18s;
+      background:
+        radial-gradient(52% 45% at 30% 25%, rgba(124,77,255,.24), transparent 62%),
+        radial-gradient(58% 48% at 70% 40%, rgba(0,212,255,.20), transparent 62%),
+        radial-gradient(55% 45% at 45% 85%, rgba(124,77,255,.18), transparent 62%);
+    }
 
-        .pro-table tbody tr {
-            background: rgba(255,255,255,0.02);
-            border-bottom: 1px solid #1a3a5a;
-            transition: 0.2s;
-        }
-        .pro-table tbody tr:hover {
-            background: rgba(0, 212, 255, 0.05);
-        }
-        .pro-table td {
-            padding: 16px 10px !important;
-            vertical-align: middle;
-            text-align: center;
-            border: none;
-            font-size: 0.95rem;
-        }
+    @keyframes auroraFloat {
+      0%   { transform: translate3d(-3%, -2%, 0) scale(1.02) rotate(-1deg); }
+      50%  { transform: translate3d(2%, 3%, 0) scale(1.05) rotate(1deg); }
+      100% { transform: translate3d(-1%, 2%, 0) scale(1.03) rotate(-0.6deg); }
+    }
 
-        .pro-table tbody tr.rank-1 {
-            background: linear-gradient(to right, #ffcc00, #ffeb3b) !important;
-            box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
-        }
-        .pro-table tbody tr.rank-1 td {
-            color: #fff !important;
-            font-weight: 800;
-        }
-        .pro-table tbody tr.rank-1 .badge {
-            background: rgba(244, 177, 79, 0.8) !important;
-            color: #fff !important;
-        }
-        .pro-table tbody tr.rank-1 .score-text {
-             color: #fff !important;
-        }
-        .pro-table tbody tr.rank-1 .fa-fire {
-            color: #d90429 !important;
-        }
+    #fx-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
 
-        .score-text {
-            color: var(--accent);
-            font-weight: bold;
-            font-family: 'Consolas', monospace;
-        }
-        .medal-icon {
-            font-size: 1.2rem;
-        }
-        .badge-cat {
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 4px 10px;
-            font-size: 0.8rem;
-        }
-    </style>
+    .content-wrap {
+      position: relative;
+      z-index: 5;
+    }
+
+    /* 导航栏 */
+    .navbar {
+      background: rgba(5, 11, 26, 0.75) !important;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border-medium);
+      box-shadow: var(--shadow-md);
+    }
+
+    .navbar::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,.4) 20%, rgba(124,77,255,.4) 50%, rgba(0,212,255,.4) 80%, transparent);
+      opacity: 0.6;
+    }
+
+    .navbar-brand {
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .navbar-brand:hover {
+      color: var(--accent-cyan) !important;
+      transform: translateX(-3px);
+    }
+
+    .btn-outline-info {
+      border-color: var(--border-light);
+      color: var(--text-primary);
+      backdrop-filter: blur(10px);
+      transition: all 0.2s;
+    }
+
+    .btn-outline-info:hover {
+      background: var(--glass-light);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan) !important;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    /* 主标题 */
+    .contest-main-title {
+      position: absolute;
+      top:-40px;; /* ✅ 文字往上一点（原来是 20px） */
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 12px;
+      background: linear-gradient(90deg, var(--accent-cyan) 0%, #fff 25%, var(--accent-purple) 50%, #fff 75%, var(--accent-cyan) 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientShift 8s ease infinite;
+      filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.15));
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% center; }
+      50% { background-position: 100% center; }
+    }
+
+    /* 趋势图容器 */
+    .trend-box {
+      background: var(--glass-medium);
+      border: 1px solid var(--border-medium);
+      border-radius: 20px;
+      padding: 25px;
+      height: 400px;
+      margin-bottom: 30px;
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(25px) saturate(180%);
+      -webkit-backdrop-filter: blur(25px) saturate(180%);
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .trend-box::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      pointer-events: none;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(0,212,255,.25), rgba(124,77,255,.20) 50%, transparent);
+      opacity: 0.4;
+      padding: 1px;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    .trend-box:hover {
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.55);
+      border-color: var(--border-light);
+    }
+
+    /* 表格容器 */
+    .pro-table-container {
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--glass-medium);
+      border: 1px solid var(--border-medium);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(25px) saturate(180%);
+      -webkit-backdrop-filter: blur(25px) saturate(180%);
+      position: relative;
+    }
+
+    .pro-table-container::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      pointer-events: none;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(0,212,255,.25), rgba(124,77,255,.20) 50%, transparent);
+      opacity: 0.4;
+      padding: 1px;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    .pro-table {
+      margin-bottom: 0;
+      background: transparent;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    /* 表头 */
+    .pro-table thead tr {
+      background: linear-gradient(90deg, rgba(0,212,255,.20), rgba(124,77,255,.18) 50%, rgba(0,212,255,.20));
+    }
+
+    .pro-table th {
+      border: none !important;
+      padding: 18px 12px !important;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      position: relative;
+    }
+
+    .pro-table th::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,.3) 25%, rgba(124,77,255,.3) 50%, rgba(0,212,255,.3) 75%, transparent);
+      opacity: 0.8;
+    }
+
+    /* 数据行 */
+    .pro-table tbody tr {
+      background: rgba(255, 255, 255, 0.015);
+      border-bottom: 1px solid var(--border-dark);
+      transition: all 0.2s;
+    }
+
+    .pro-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .pro-table tbody tr:hover {
+      background: rgba(0, 212, 255, 0.08);
+      transform: scale(1.005);
+      box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.2);
+    }
+
+    .pro-table td {
+      padding: 16px 12px !important;
+      vertical-align: middle;
+      text-align: center;
+      border: none;
+      font-size: 0.95rem;
+    }
+
+    /* Top 1 金色 */
+    .pro-table tbody tr.rank-1 {
+      background: linear-gradient(90deg, rgba(255,204,0,.25), rgba(255,215,0,.15)) !important;
+      box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.3), 0 8px 25px rgba(255, 204, 0, 0.2);
+      animation: pulseGold 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGold {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.3), 0 8px 25px rgba(255, 204, 0, 0.2); }
+      50% { box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.4), 0 12px 35px rgba(255, 204, 0, 0.3); }
+    }
+
+    .pro-table tbody tr.rank-1 td {
+      color: #ffd700 !important;
+      font-weight: 800;
+    }
+
+    .pro-table tbody tr.rank-1 .score-text {
+      color: #ffd700 !important;
+      text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    }
+
+    /* Top 2 银色 */
+    .pro-table tbody tr.rank-2 {
+      background: linear-gradient(90deg, rgba(229,231,235,.18), rgba(200,200,200,.10)) !important;
+      box-shadow: 0 0 0 2px rgba(229, 231, 235, 0.25), 0 8px 25px rgba(229, 231, 235, 0.15);
+    }
+
+    .pro-table tbody tr.rank-2 td {
+      color: #e5e7eb !important;
+      font-weight: 700;
+    }
+
+    /* Top 3 铜色 */
+    .pro-table tbody tr.rank-3 {
+      background: linear-gradient(90deg, rgba(205,127,50,.18), rgba(180,100,40,.10)) !important;
+      box-shadow: 0 0 0 2px rgba(205, 127, 50, 0.25), 0 8px 25px rgba(205, 127, 50, 0.15);
+    }
+
+    .pro-table tbody tr.rank-3 td {
+      color: #cd7f32 !important;
+      font-weight: 700;
+    }
+
+    /* 分数文字 */
+    .score-text {
+      color: var(--accent-cyan);
+      font-weight: 800;
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 1.1rem;
+      text-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+    }
+
+    /* 奖牌图标 */
+    .medal-icon {
+      font-size: 1.3rem;
+      filter: drop-shadow(0 0 8px currentColor);
+      animation: iconBounce 2s ease-in-out infinite;
+    }
+
+    @keyframes iconBounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    /* 徽章 */
+    .badge-cat {
+      background: rgba(0, 212, 255, 0.10);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      color: var(--accent-cyan);
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      border-radius: 50px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      body { padding-top: 70px; }
+      .contest-main-title {
+        font-size: 1.3rem;
+        letter-spacing: 6px;
+      }
+      .trend-box { height: 300px; }
+      .pro-table th { font-size: 0.7rem; padding: 12px 8px !important; }
+      .pro-table td { font-size: 0.85rem; padding: 12px 8px !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+      .aurora-layer { animation: none; }
+      #fx-canvas { display: none; }
+    }
+  </style>
 </head>
+
 <body>
+  <canvas id="fx-canvas"></canvas>
+  <div class="aurora-layer"></div>
+  <div class="aurora-layer layer2"></div>
 
-    <nav class="navbar navbar-dark fixed-top" style="background: rgba(5, 11, 26, 0.8); backdrop-filter: blur(10px);">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="index.html">
-                <i class="fas fa-arrow-left me-2"></i> 返回主菜单
-            </a>
+  <div class="content-wrap">
+    <nav class="navbar navbar-dark fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="index.html">
+          <i class="fas fa-arrow-left me-2"></i> 返回主菜单
+        </a>
 
-            <span class="navbar-text fw-bold" style="font-size: 1.2rem; color: #00d4ff; text-shadow: 0 0 10px #00d4ff;">
-                实时荣誉大屏
-            </span>
+        <span class="navbar-text fw-bold" style="font-size: 1.2rem; color: var(--accent-cyan); text-shadow: 0 0 12px rgba(0, 212, 255, 0.6);">
+          实时荣誉大屏
+        </span>
 
-            <div class="d-flex align-items-center">
-                <a href="matrix.html" class="btn btn-outline-info btn-sm me-3">
-                    <i class="fas fa-th me-1"></i> 切换至解题位图
-                </a>
-                <span id="current-time" class="navbar-text" style="font-family: monospace;"></span>
-            </div>
+        <div class="d-flex align-items-center">
+          <a href="matrix.html" class="btn btn-outline-info btn-sm me-3">
+            <i class="fas fa-th me-1"></i> 切换至解题位图
+          </a>
+          <span id="current-time" class="navbar-text" style="font-family: Monaco, Consolas, monospace;"></span>
         </div>
+      </div>
     </nav>
 
     <div class="contest-main-title">SDHGCTF 2026 期末巅峰挑战赛</div>
 
     <div class="container-fluid">
-        <div class="trend-box">
-            <canvas id="trendChart"></canvas>
-        </div>
+      <div class="trend-box">
+        <canvas id="trendChart"></canvas>
+      </div>
 
-        <div class="pro-table-container">
-            <table class="table table-dark pro-table">
-                <thead>
-                    <tr>
-                        <th style="width: 80px;">排名</th>
-                        <th class="text-start" style="padding-left: 30px !important;">战队 / 选手名称</th>
-                        <th>总分积分</th>
-                        <th>擅长领域</th>
-                        <th>解题总数</th>
-                        <th>一血荣誉</th>
-                        <th>最后活跃时间</th>
-                    </tr>
-                </thead>
-                <tbody id="leaderboard-body"></tbody>
-            </table>
-        </div>
+      <div class="pro-table-container">
+        <table class="table table-dark pro-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">排名</th>
+              <th class="text-start" style="padding-left: 30px !important;">战队 / 选手名称</th>
+              <th>总分积分</th>
+              <th>擅长领域</th>
+              <th>解题总数</th>
+              <th>一血荣誉</th>
+              <th>最后活跃时间</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
     </div>
+  </div>
 
-    <script>
-        // ✅ 跟 index/admin 一致：自动识别端口，避免 PyCharm 63342 打开时跨端口问题
-        const API_PORT = 5000;
-        const API_HOST = (location.port === String(API_PORT))
-          ? `${location.protocol}//${location.host}`
-          : `${location.protocol}//${location.hostname}:${API_PORT}`;
-        const API_BASE = `${API_HOST}/api`;
+  <script>
+    const API_PORT = 5000;
+    const API_HOST = (location.port === String(API_PORT))
+      ? `${location.protocol}//${location.host}`
+      : `${location.protocol}//${location.hostname}:${API_PORT}`;
+    const API_BASE = `${API_HOST}/api`;
 
-        let trendChart = null;
+    let trendChart = null;
 
-        function getToken(){
-          return localStorage.getItem('ctf_token') || '';
+    function getToken() { return localStorage.getItem('ctf_token') || ''; }
+
+    async function apiFetch(url, options = {}) {
+      const target = url.startsWith('http') ? url : `${API_BASE}${url}`;
+      const method = (options.method || 'GET').toUpperCase();
+      const headers = Object.assign({}, options.headers || {});
+      if (!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD') {
+        headers['Content-Type'] = 'application/json';
+      }
+      const token = getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      return fetch(target, Object.assign({}, options, { headers, cache: 'no-store' }));
+    }
+
+    function unwrap(json) {
+      return (json && json.data !== undefined) ? json.data : json;
+    }
+
+    // ✅ 表格时间：后端给啥就显示啥（不再乱 parse 成 2001）
+    function showTime(val) {
+      if (val === null || val === undefined) return '-';
+      const s = String(val).trim();
+      return s || '-';
+    }
+
+    // ✅ 确保 Chart.js 已经加载（解决“图表区域空白”）
+    function waitForChartJs(timeoutMs = 4000) {
+      return new Promise((resolve, reject) => {
+        const start = Date.now();
+        (function check() {
+          if (window.Chart) return resolve(true);
+          if (Date.now() - start > timeoutMs) return reject(new Error('Chart.js 加载失败'));
+          setTimeout(check, 30);
+        })();
+      });
+    }
+
+    async function updateData() {
+      try {
+        const res = await apiFetch('/scoreboard_pro');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = await res.json().catch(() => ({}));
+        const data = unwrap(raw);
+
+        // 你的 /api/scoreboard_pro 返回：{trend_labels, users, trends}
+        if (!data || !Array.isArray(data.users) || !data.trends || !Array.isArray(data.trend_labels)) {
+          console.error("数据格式不正确:", raw);
+          return;
         }
 
-        // ✅ apiFetch（你原来就有）
-        async function apiFetch(url, options = {}){
-          const target = url.startsWith('http') ? url : `${API_BASE}${url}`;
-          const method = (options.method || 'GET').toUpperCase();
-          const headers = Object.assign({}, (options.headers || {}));
+        // 渲染表格（只用 users 里现有字段；没有 strongest_cat/solve_count/first_bloods/last_update 就显示默认）
+        const body = document.getElementById('leaderboard-body');
+        body.innerHTML = data.users.map((u) => {
+          let rankIcon = u.rank;
+          let rankClass = '';
 
-          // GET 不加 Content-Type，避免预检
-          if(!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD'){
-            headers['Content-Type'] = 'application/json';
+          if (u.rank === 1) {
+            rankIcon = '<i class="fas fa-medal medal-icon" style="color:#FFB040"></i>';
+            rankClass = 'rank-1';
+          } else if (u.rank === 2) {
+            rankIcon = '<i class="fas fa-medal medal-icon" style="color:#AEAAA7"></i>';
+            rankClass = 'rank-2';
+          } else if (u.rank === 3) {
+            rankIcon = '<i class="fas fa-medal medal-icon" style="color:#A46628"></i>';
+            rankClass = 'rank-3';
           }
 
-          const token = getToken();
-          if(token){
-            headers['Authorization'] = `Bearer ${token}`;
-          }
+          return `
+            <tr class="${rankClass}">
+              <td>${rankIcon}</td>
+              <td class="text-start" style="padding-left: 30px !important;">
+                <i class="fas fa-user-ninja me-2 opacity-75"></i> ${u.username}
+              </td>
+              <td class="score-text">${u.score ?? 0}</td>
+              <td><span class="badge badge-cat">${u.strongest_cat || '-'}</span></td>
+              <td>${u.solve_count ?? '-'}</td>
+              <td><i class="fas fa-fire text-danger me-1"></i>${u.first_bloods ?? '-'}</td>
+              <td class="small opacity-75">${showTime(u.last_update || u.last_active || u.updated_at || '-')}</td>
+            </tr>
+          `;
+        }).join('');
 
-          return fetch(target, Object.assign({}, options, { headers }));
+        renderChart(data.trends, data.users, data.trend_labels);
+      } catch (e) {
+        console.error("数据加载失败:", e);
+        // 失败时也不要整页空白：至少把图清掉
+        if (trendChart) {
+          trendChart.destroy();
+          trendChart = null;
         }
+      }
+    }
 
-        function unwrap(json){
-          return (json && json.data !== undefined) ? json.data : json;
-        }
+    function normalizePoints(points, targetLen) {
+      const arr = Array.isArray(points) ? points.slice() : [];
+      if (targetLen <= 0) return [];
+      if (arr.length === 0) return Array(targetLen).fill(0);
+      if (arr.length < targetLen) {
+        const last = arr[arr.length - 1];
+        while (arr.length < targetLen) arr.push(last);
+        return arr;
+      }
+      if (arr.length > targetLen) return arr.slice(arr.length - targetLen);
+      return arr;
+    }
 
-        async function updateData() {
-            try {
-                const res = await apiFetch('/scoreboard_pro');
-                const raw = await res.json().catch(()=> ({}));
-                const data = unwrap(raw);
+    function renderChart(trends, users, labels) {
+      const canvas = document.getElementById('trendChart');
+      if (!canvas || !window.Chart) return;
 
-                if (!data || !data.users || !data.trends) {
-                    console.error("从API获取的数据格式不正确:", raw);
-                    return;
-                }
+      const ctx = canvas.getContext('2d');
 
-                const body = document.getElementById('leaderboard-body');
-                body.innerHTML = data.users.map(u => {
-                    let rankIcon = u.rank;
-                    if(u.rank === 1) rankIcon = '<i class="fas fa-medal medal-icon" style="color:#FFB040"></i>';
-                    else if(u.rank === 2) rankIcon = '<i class="fas fa-medal medal-icon" style="color:#AEAAA7"></i>';
-                    else if(u.rank === 3) rankIcon = '<i class="fas fa-medal medal-icon" style="color:#A46628"></i>';
+      // ✅ 你要的：底部就是具体时间（trend_labels：HH:MM）
+      const xLabels = labels;
 
-                    return `
-                        <tr class="${u.rank === 1 ? 'rank-1' : ''}">
-                            <td>${rankIcon}</td>
-                            <td class="text-start" style="padding-left: 30px !important;">
-                                <i class="fas fa-user-ninja me-2 opacity-75"></i> ${u.username}
-                            </td>
-                            <td class="score-text">${u.score}</td>
-                            <td><span class="badge badge-cat">${u.strongest_cat || '-'}</span></td>
-                            <td>${u.solve_count ?? 0}</td>
-                            <td><i class="fas fa-fire text-danger me-1"></i>${u.first_bloods ?? 0}</td>
-                            <td class="small opacity-75">${u.last_update || '-'}</td>
-                        </tr>
-                    `;
-                }).join('');
+      // ✅ 显示更像你截图那种：阶梯得分曲线（CTF 常用）
+      const colors = [
+        '#00d4ff', '#ffcc00', '#ff4d4d', '#a855f7', '#10b981',
+        '#f472b6', '#ffffff', '#34d399', '#fbbf24', '#60a5fa',
+        '#fb7185', '#22c55e', '#e879f9', '#f97316', '#38bdf8'
+      ];
 
-                // ✅ 使用后端返回的时间轴
-                renderChart(data.trends, data.users, data.trend_labels);
-            } catch (e) {
-                console.error("数据加载失败:", e);
-            }
-        }
+      const topUsers = (Array.isArray(users) ? users : []).slice(0, 15);
+      const topUsernames = topUsers.map(u => u.username);
 
-        function normalizePoints(points, targetLen){
-            const arr = Array.isArray(points) ? points.slice() : [];
-            if(arr.length === 0){
-                return Array(targetLen).fill(0);
-            }
-            if(arr.length < targetLen){
-                const last = arr[arr.length - 1];
-                while(arr.length < targetLen) arr.push(last);
-                return arr;
-            }
-            if(arr.length > targetLen){
-                return arr.slice(arr.length - targetLen);
-            }
-            return arr;
-        }
+      const datasets = Object.entries(trends)
+        .filter(([name]) => topUsernames.includes(name))
+        .map(([name, points]) => {
+          const user = topUsers.find(u => u.username === name);
+          const colorIndex = topUsernames.indexOf(name);
+          const fixedPoints = normalizePoints(points, xLabels.length);
 
-        function renderChart(trends, users, labelsFromApi) {
-            const canvas = document.getElementById('trendChart');
-            if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-
-            const labels = (Array.isArray(labelsFromApi) && labelsFromApi.length > 0)
-              ? labelsFromApi
-              : ['Start', 'Phase 1', 'Phase 2', 'Phase 3', 'Now'];
-
-            const colors = ['#00d4ff', '#ffcc00', '#ff4d4d', '#a855f7', '#10b981', '#f472b6', '#ffffff', '#34d399', '#fbbf24'];
-
-            const topUsers = users.slice(0, 15);
-            const topUsernames = topUsers.map(u => u.username);
-
-            const datasets = Object.entries(trends)
-                .filter(([name]) => topUsernames.includes(name))
-                .map(([name, points]) => {
-                    const user = users.find(u => u.username === name);
-                    const colorIndex = topUsernames.indexOf(name);
-
-                    const fixedPoints = normalizePoints(points, labels.length);
-
-                    return {
-                        label: `#${user ? user.rank : '?'} ${name}`,
-                        data: fixedPoints,
-                        borderColor: colors[colorIndex % colors.length],
-                        backgroundColor: colors[colorIndex % colors.length],
-                        borderWidth: 3,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        pointHoverRadius: 6,
-                        fill: false
-                    };
-                });
-
-            if(trendChart) trendChart.destroy();
-
-            trendChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 800 },
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                color: '#8899a6',
-                                font: { size: 12, weight: 'bold' },
-                                padding: 20,
-                                usePointStyle: true,
-                                boxWidth: 8
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: 'rgba(10, 22, 46, 0.8)',
-                            titleFont: { size: 14, weight: 'bold'},
-                            bodyFont: { size: 12 },
-                            padding: 10,
-                            cornerRadius: 4
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'category',
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#8899a6', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.08)' },
-                            ticks: { color: '#8899a6' }
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('zh-CN', { hour12: false });
-            const timeEl = document.getElementById('current-time');
-            if (timeEl) timeEl.innerText = timeString;
-        }
-
-        // 初始加载 + 定时刷新
-        window.addEventListener('DOMContentLoaded', ()=>{
-          updateData();
-          updateTime();
-          setInterval(updateData, 60000); // ✅ 每60秒刷新一次数据
-          setInterval(updateTime, 1000);
+          return {
+            label: `#${user ? user.rank : '?'} ${name}`,
+            data: fixedPoints,
+            borderColor: colors[colorIndex % colors.length],
+            backgroundColor: colors[colorIndex % colors.length],
+            borderWidth: 2.6,
+            stepped: true,          // ✅ 关键：阶梯型（更像 CTF 得分趋势）
+            tension: 0,             // 不要曲线拐弯（否则像“折现”一样不对劲）
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            fill: false
+          };
         });
-    </script>
+
+      if (trendChart) trendChart.destroy();
+
+      // X 轴刻度：点很多时只显示部分，但 hover 仍然是具体时间
+      const maxTicks = 10; // 你可以调大/调小
+      const step = Math.max(1, Math.ceil(xLabels.length / maxTicks));
+
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: xLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 450 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#cbd5e1',
+                font: { size: 12, weight: 'bold' },
+                padding: 18,
+                usePointStyle: true,
+                boxWidth: 8
+              }
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(10, 22, 46, 0.92)',
+              titleColor: '#e9f2ff',
+              bodyColor: '#e9f2ff',
+              titleFont: { size: 13, weight: 'bold' },
+              bodyFont: { size: 12 },
+              padding: 12,
+              cornerRadius: 10,
+              borderColor: 'rgba(0, 212, 255, 0.30)',
+              borderWidth: 1,
+              callbacks: {
+                // ✅ tooltip 标题显示具体时间点（来自 trend_labels）
+                title: (items) => {
+                  const idx = items?.[0]?.dataIndex ?? 0;
+                  return `时间：${xLabels[idx] ?? ''}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'category',
+              grid: { color: 'rgba(255,255,255,0.06)' },
+              ticks: {
+                color: '#a7b0bf',
+                maxRotation: 0,
+                autoSkip: false,
+                callback: function(value, index) {
+                  // 只显示部分刻度，避免挤成一团；首尾必显示
+                  if (index === 0 || index === xLabels.length - 1) return xLabels[index];
+                  return (index % step === 0) ? xLabels[index] : '';
+                }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255,255,255,0.10)' },
+              ticks: { color: '#a7b0bf' }
+            }
+          }
+        }
+      });
+    }
+
+    function updateTime() {
+      const now = new Date();
+      const timeEl = document.getElementById('current-time');
+      if (timeEl) timeEl.innerText = now.toLocaleTimeString('zh-CN', { hour12: false });
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      updateTime();
+      setInterval(updateTime, 1000);
+
+      // ✅ 先等 Chart.js，再拉数据绘图（解决你“空白”）
+      try {
+        await waitForChartJs();
+      } catch (e) {
+        console.error(e);
+      }
+
+      await updateData();
+      setInterval(updateData, 30000); // 30 秒刷新一次（你后端也是 5 分钟点，30s 刷新足够）
+    });
+
+    // 粒子动画（你原样保留）
+    (function() {
+      const canvas = document.getElementById('fx-canvas');
+      if (!canvas || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+
+      const ctx = canvas.getContext('2d', { alpha: true });
+      let w = 0, h = 0, dpr = 1;
+      const isMobile = matchMedia('(max-width: 768px)').matches;
+      const COUNT = isMobile ? 180 : 420;
+      const LINE_MIN = isMobile ? 6 : 7;
+      const LINE_MAX = isMobile ? 14 : 18;
+
+      const mouse = { x: -9999, y: -9999, inside: false, vx: 0, vy: 0, px: -9999, py: -9999 };
+      window.addEventListener('mousemove', e => {
+        mouse.inside = true;
+        mouse.vx = e.clientX - mouse.px;
+        mouse.vy = e.clientY - mouse.py;
+        mouse.px = mouse.x = e.clientX;
+        mouse.py = mouse.y = e.clientY;
+      }, { passive: true });
+
+      window.addEventListener('mouseleave', () => {
+        mouse.inside = false;
+        mouse.x = mouse.y = -9999;
+        mouse.vx = mouse.vy = 0;
+      }, { passive: true });
+
+      const rand = (a, b) => Math.random() * (b - a) + a;
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        homes = makeHomes(COUNT);
+        if (particles.length) {
+          for (let i = 0; i < particles.length; i++) {
+            particles[i].hx = homes[i].x;
+            particles[i].hy = homes[i].y;
+          }
+        }
+      }
+
+      window.addEventListener('resize', resize, { passive: true });
+
+      function makeHomes(n) {
+        const homes = [];
+        const aspect = w / Math.max(1, h);
+        const cols = Math.max(12, Math.floor(Math.sqrt(n * aspect)));
+        const rows = Math.ceil(n / cols);
+        const cw = w / cols, ch = h / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = (c + 0.5) * cw + rand(-cw * 0.38, cw * 0.38);
+            const y = (r + 0.5) * ch + rand(-ch * 0.38, ch * 0.38);
+            homes.push({ x: clamp(x, 0, w), y: clamp(y, 0, h) });
+          }
+        }
+        for (let i = homes.length - 1; i > 0; i--) {
+          const j = (Math.random() * (i + 1)) | 0;
+          [homes[i], homes[j]] = [homes[j], homes[i]];
+        }
+        return homes.slice(0, n);
+      }
+
+      const COLORS = [[0,212,255], [124,77,255], [80,190,255], [170,120,255], [255,255,255]];
+      const pickColor = () => COLORS[(Math.random() * COLORS.length) | 0];
+
+      let homes = [];
+      const particles = [];
+
+      function init() {
+        resize();
+        particles.length = 0;
+        for (let i = 0; i < COUNT; i++) {
+          const c = pickColor();
+          const z = rand(0.20, 1.0);
+          const dir = Math.random() < 0.5 ? -1 : 1;
+          particles.push({
+            x: homes[i].x, y: homes[i].y,
+            hx: homes[i].x, hy: homes[i].y,
+            vx: rand(-0.25, 0.25), vy: rand(-0.25, 0.25),
+            len: rand(LINE_MIN, LINE_MAX) * (0.65 + z * 0.85),
+            lw: rand(0.9, 1.7) * (0.55 + z * 0.65),
+            a: rand(0.18, 0.55) * (0.55 + z * 0.55),
+            z, dir, cr: c[0], cg: c[1], cb: c[2],
+            seed: rand(0, 9999)
+          });
+        }
+      }
+      init();
+
+      const R = isMobile ? 240 : 340, R2 = R * R;
+      const PULL = 0.070, SWIRL = 0.120, ORBIT = 0.020;
+      const MOUSE_BOOST = 0.0014, RETURN_K = 0.032;
+      const RETURN_DAMP = 0.85, FOLLOW_DAMP = 0.92;
+      const NOISE = 0.011, MAXV = 5.0;
+
+      function limit(p) {
+        const sp = Math.hypot(p.vx, p.vy);
+        if (sp > MAXV) {
+          p.vx = (p.vx / sp) * MAXV;
+          p.vy = (p.vy / sp) * MAXV;
+        }
+      }
+
+      function field(p, t) {
+        const nx = p.x / w, ny = p.y / h;
+        const a = Math.sin((nx * 2.1 + ny * 1.7) * Math.PI + t * 0.00035 + p.seed)
+          + Math.cos((ny * 2.4 - nx * 1.8) * Math.PI + t * 0.00028 - p.seed * 0.6);
+        p.vx += Math.cos(a * 0.95) * (0.02 + p.z * 0.03);
+        p.vy += Math.sin(a * 0.95) * (0.02 + p.z * 0.03);
+      }
+
+      function drawStreak(p) {
+        const sp = Math.hypot(p.vx, p.vy);
+        let ux = 1, uy = 0;
+        if (sp > 0.001) {
+          ux = p.vx / sp; uy = p.vy / sp;
+        } else {
+          ux = Math.cos(p.seed); uy = Math.sin(p.seed);
+        }
+        const tail = p.len * (0.65 + Math.min(1.2, sp / 2.2));
+        const x1 = p.x, y1 = p.y;
+        const x0 = x1 - ux * tail, y0 = y1 - uy * tail;
+        const g = ctx.createLinearGradient(x0, y0, x1, y1);
+        g.addColorStop(0, `rgba(${p.cr},${p.cg},${p.cb},0)`);
+        g.addColorStop(0.55, `rgba(${p.cr},${p.cg},${p.cb},${p.a * 0.45})`);
+        g.addColorStop(1, `rgba(${p.cr},${p.cg},${p.cb},${p.a})`);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = p.lw;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+
+      function tick(t) {
+        ctx.clearRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of particles) {
+          field(p, t);
+          p.vx += rand(-NOISE, NOISE) * (0.35 + p.z);
+          p.vy += rand(-NOISE, NOISE) * (0.35 + p.z);
+          if (mouse.inside) {
+            const dx = mouse.x - p.x, dy = mouse.y - p.y, d2 = dx * dx + dy * dy;
+            if (d2 < R2) {
+              const d = Math.sqrt(d2) || 1, k = 1 - d / R, kk = k * k;
+              p.vx += (dx / d) * PULL * kk * (0.70 + p.z);
+              p.vy += (dy / d) * PULL * kk * (0.70 + p.z);
+              const tx = -dy / d, ty = dx / d;
+              p.vx += tx * SWIRL * kk * p.dir * (0.65 + p.z);
+              p.vy += ty * SWIRL * kk * p.dir * (0.65 + p.z);
+              p.vx += tx * ORBIT * k * p.dir;
+              p.vy += ty * ORBIT * k * p.dir;
+              p.vx += mouse.vx * MOUSE_BOOST * kk * (0.6 + p.z);
+              p.vy += mouse.vy * MOUSE_BOOST * kk * (0.6 + p.z);
+              p.vx *= FOLLOW_DAMP; p.vy *= FOLLOW_DAMP;
+            } else {
+              p.vx += (p.hx - p.x) * RETURN_K * 0.30;
+              p.vy += (p.hy - p.y) * RETURN_K * 0.30;
+              p.vx *= 0.965; p.vy *= 0.965;
+            }
+          } else {
+            p.vx += (p.hx - p.x) * RETURN_K;
+            p.vy += (p.hy - p.y) * RETURN_K;
+            p.vx *= RETURN_DAMP; p.vy *= RETURN_DAMP;
+          }
+          limit(p);
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0) { p.x = 0; p.vx *= -0.55; }
+          if (p.x > w) { p.x = w; p.vx *= -0.55; }
+          if (p.y < 0) { p.y = 0; p.vy *= -0.55; }
+          if (p.y > h) { p.y = h; p.vy *= -0.55; }
+          drawStreak(p);
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })();
+  </script>
 </body>
 </html>

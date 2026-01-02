@@ -1,657 +1,652 @@
-# -*- coding: utf-8 -*-
 import os
-from datetime import datetime, timedelta
-from functools import wraps
-from threading import Lock
-from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
-from flask import Flask, jsonify, request, send_from_directory, abort
+from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request
 from flask_cors import CORS
+
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from sqlalchemy.orm import joinedload
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    jwt_required,
+    get_jwt_identity,
+    verify_jwt_in_request,
+)
 
-# ============ 路径与基础配置 ============
+# =========================
+# 基础配置
+# =========================
+TZ_OFFSET_HOURS = int(os.getenv("TZ_OFFSET_HOURS", "8"))  # 默认东八区
+LOCAL_TZ = timezone(timedelta(hours=TZ_OFFSET_HOURS))
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_DIR = os.path.dirname(BASE_DIR)
-INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
-FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
-STATIC_DIR = os.path.join(PROJECT_DIR, "static")
-os.makedirs(INSTANCE_DIR, exist_ok=True)
+ATTACH_DIR = os.path.join(BASE_DIR, "attachments")
+os.makedirs(ATTACH_DIR, exist_ok=True)
 
-DB_PATH = os.path.join(INSTANCE_DIR, "local_ctf.db")
-DB_URI = "sqlite:///" + DB_PATH.replace("\\", "/")
+STUDENT_INVITE = os.getenv("STUDENT_INVITE", "STUDENT2026")
+TEACHER_INVITE = os.getenv("TEACHER_INVITE", "TEACHER2026")
 
-app = Flask(
-    __name__,
-    static_folder=STATIC_DIR,
-    static_url_path="/static",
-    instance_path=INSTANCE_DIR,
-)
 
-app.config.update(
-    SQLALCHEMY_DATABASE_URI=DB_URI,
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    JWT_SECRET_KEY="dev-only-change-me-in-production",
-    JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=24),
-)
+def utcnow():
+    return datetime.now(timezone.utc)
 
-# CORS配置
-CORS(app)
+
+def to_local(dt: datetime):
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(LOCAL_TZ)
+
+
+def fmt_local(dt: datetime, with_date=True, with_sec=True):
+    if not dt:
+        return "-"
+    dt = to_local(dt)
+    if with_date and with_sec:
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    if with_date and not with_sec:
+        return dt.strftime("%Y-%m-%d %H:%M")
+    if (not with_date) and with_sec:
+        return dt.strftime("%H:%M:%S")
+    return dt.strftime("%H:%M")
+
+
+def json_response(success=True, msg="ok", data=None, status=200):
+    return jsonify({"success": success, "msg": msg, "data": data}), status
+
+
+# =========================
+# Flask / DB / JWT
+# =========================
+app = Flask(__name__)
+
+db_url = os.getenv("DATABASE_URL", "sqlite:///ctf.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
+
+# JWT：支持 query_string token
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-secret-change-me")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]
+app.config["JWT_QUERY_STRING_NAME"] = "token"
+app.config["JWT_QUERY_STRING_VALUE_PREFIX"] = ""  # ?token=xxx 直接可用
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 
-INVITATION_CODES = {
-    "SDHG2026CTF": {"max_uses": 65, "type": "student", "label": "学生邀请码"},
-    "TEACHER01": {"max_uses": 5, "type": "teacher", "label": "教师邀请码"},
-}
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
-# ============ 数据模型 ============
+# =========================
+# Models
+# =========================
 class User(db.Model):
-    __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    username = db.Column(db.String(32), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    real_name = db.Column(db.String(64))
-    student_id = db.Column(db.String(64))
-    class_info = db.Column(db.String(128))
-    invitation_code = db.Column(db.String(64))
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
-    status = db.Column(db.String(16), default="pending", nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    solves = db.relationship("Solve", backref="user", lazy=True, cascade="all, delete-orphan")
-    submissions = db.relationship("Submission", backref="user", lazy=True, cascade="all, delete-orphan")
+
+    real_name = db.Column(db.String(64), default="")
+    student_id = db.Column(db.String(64), default="")
+    class_info = db.Column(db.String(128), default="")
+
+    is_admin = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(16), default="pending")  # pending/approved/rejected
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def set_password(self, pwd):
+        self.password_hash = generate_password_hash(pwd)
+
+    def check_password(self, pwd):
+        return check_password_hash(self.password_hash, pwd)
 
 
 class Challenge(db.Model):
-    __tablename__ = "challenge"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(32), nullable=False, index=True)
-    points = db.Column(db.Integer, nullable=False, default=100)
+    description = db.Column(db.Text, default="")
+    category = db.Column(db.String(32), default="MISC")
+    points = db.Column(db.Integer, default=100)
+
     flag = db.Column(db.String(256), nullable=False)
-    file_path = db.Column(db.String(256))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    solves = db.relationship("Solve", backref="challenge", lazy=True, cascade="all, delete-orphan")
-    submissions = db.relationship("Submission", backref="challenge", lazy=True, cascade="all, delete-orphan")
+    file_path = db.Column(db.String(256), default="")
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class Solve(db.Model):
-    __tablename__ = "solve"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge.id"), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    __table_args__ = (
-        db.UniqueConstraint("user_id", "challenge_id", name="uniq_user_challenge_solve"),
-    )
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), index=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge.id"), index=True)
+    solved_at = db.Column(db.DateTime, default=utcnow, index=True)
 
 
 class Submission(db.Model):
-    __tablename__ = "submission"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge.id"), nullable=False, index=True)
-    submitted_flag = db.Column(db.String(256), nullable=False, default="")
-    is_correct = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), index=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge.id"), index=True)
+    submitted_flag = db.Column(db.String(512), default="")
+    correct = db.Column(db.Boolean, default=False)
+    submitted_at = db.Column(db.DateTime, default=utcnow, index=True)
+    ip = db.Column(db.String(64), default="")
 
 
-# ============ 工具函数 ============
-def json_response(data=None, message="", error=None, status=200):
-    """统一的JSON响应格式"""
-    payload = {"success": error is None, "message": message}
-    if error is not None:
-        payload["error"] = error
-    if data is not None:
-        payload["data"] = data
-    return jsonify(payload), status
+class Download(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge.id"), index=True)
+    downloaded_at = db.Column(db.DateTime, default=utcnow, index=True)
+    ip = db.Column(db.String(64), default="")
 
 
-def get_current_user():
-    """获取当前登录用户"""
-    try:
-        verify_jwt_in_request()
-        uid = get_jwt_identity()
-        if uid is None:
-            return None
-        try:
-            uid = int(uid)
-        except Exception:
-            return None
-        return User.query.get(uid)
-    except Exception:
-        return None
+# =========================
+# Init DB
+# =========================
+@app.before_first_request
+def init_db():
+    db.create_all()
 
 
-def admin_required(fn):
-    """管理员权限装饰器"""
-
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        u = get_current_user()
-        if not u:
-            return json_response(error="未登录", status=401)
-        if not u.is_admin:
-            return json_response(error="需要管理员权限", status=403)
-        return fn(u, *args, **kwargs)
-
-    return wrapper
+# =========================
+# Helpers
+# =========================
+def require_admin(user_id: int):
+    u = User.query.get(user_id)
+    if not u or not u.is_admin:
+        abort(403)
+    return u
 
 
-def format_dt(value):
-    if not value:
-        return ""
-    return value.strftime("%Y-%m-%d %H:%M:%S")
+def calc_user_score(user_id: int) -> int:
+    rows = (
+        db.session.query(Challenge.points)
+        .join(Solve, Solve.challenge_id == Challenge.id)
+        .filter(Solve.user_id == user_id)
+        .all()
+    )
+    return int(sum(r[0] for r in rows))
 
 
-def build_scoreboard():
-    challenges = Challenge.query.all()
+def user_rank_map():
     users = User.query.filter_by(status="approved").all()
+    scored = []
+    for u in users:
+        scored.append((u.username, calc_user_score(u.id), u.id))
+    scored.sort(key=lambda x: (-x[1], x[0].lower()))
+    rank = {}
+    for i, (_, _, uid) in enumerate(scored, start=1):
+        rank[uid] = i
+    return rank, scored
 
-    challenge_map = {c.id: c for c in challenges}
-    scores = defaultdict(int)
-    solve_counts = defaultdict(int)
-    cat_scores = defaultdict(lambda: defaultdict(int))
-    last_solve_at = {}
 
-    solves = Solve.query.order_by(Solve.created_at.asc()).all()
-    for solve in solves:
-        challenge = challenge_map.get(solve.challenge_id)
-        if not challenge:
-            continue
-        scores[solve.user_id] += challenge.points
-        solve_counts[solve.user_id] += 1
-        cat_scores[solve.user_id][challenge.category] += challenge.points
-        last_solve_at[solve.user_id] = solve.created_at
+def floor_to_interval(dt: datetime, minutes: int):
+    dt = dt.replace(second=0, microsecond=0)
+    m = (dt.minute // minutes) * minutes
+    return dt.replace(minute=m)
 
-    entries = []
-    for user in users:
-        strongest_cat = None
-        if cat_scores.get(user.id):
-            strongest_cat = max(cat_scores[user.id].items(), key=lambda x: x[1])[0]
-        entries.append(
-            {
-                "user": user,
-                "score": scores.get(user.id, 0),
-                "solve_count": solve_counts.get(user.id, 0),
-                "strongest_cat": strongest_cat,
-                "last_update": last_solve_at.get(user.id),
-            }
-        )
 
-    entries.sort(
-        key=lambda x: (
-            -x["score"],
-            x["last_update"] or datetime.min,
-            x["user"].created_at,
-        )
+def ceil_to_interval(dt: datetime, minutes: int):
+    dt = dt.replace(second=0, microsecond=0)
+    if dt.minute % minutes == 0:
+        return dt
+    m = ((dt.minute // minutes) + 1) * minutes
+    if m >= 60:
+        dt = dt.replace(minute=0) + timedelta(hours=1)
+        return dt
+    return dt.replace(minute=m)
+
+
+def make_time_labels(start_local: datetime, end_local: datetime, step_minutes: int):
+    # ✅ 输出 “MM-DD HH:MM”，图底部就能像 ByteCTF 那样带日期+时间
+    labels = []
+    t = start_local
+    while t <= end_local:
+        labels.append(t.strftime("%m-%d %H:%M"))
+        t += timedelta(minutes=step_minutes)
+    return labels
+
+
+def strongest_category_for_user(uid: int):
+    # ✅ 统计该用户解题最多的类别
+    rows = (
+        db.session.query(Challenge.category, db.func.count(Solve.id))
+        .join(Solve, Solve.challenge_id == Challenge.id)
+        .filter(Solve.user_id == uid)
+        .group_by(Challenge.category)
+        .order_by(db.func.count(Solve.id).desc(), Challenge.category.asc())
+        .all()
     )
-
-    for idx, entry in enumerate(entries, start=1):
-        entry["rank"] = idx
-
-    return entries, challenges
+    if not rows:
+        return "-"
+    return rows[0][0] or "-"
 
 
-def build_first_bloods():
-    first_bloods = defaultdict(int)
-    challenges = Challenge.query.all()
-    for challenge in challenges:
-        first_solve = (
-            Solve.query.filter_by(challenge_id=challenge.id)
-            .order_by(Solve.created_at.asc(), Solve.id.asc())
-            .first()
+def first_blood_count_for_user(uid: int):
+    # ✅ 一血：该题最早 solved_at 的 user_id == uid
+    # 子查询：每题最早解题时间
+    sub = (
+        db.session.query(
+            Solve.challenge_id.label("cid"),
+            db.func.min(Solve.solved_at).label("min_t"),
         )
-        if first_solve:
-            first_bloods[first_solve.user_id] += 1
-    return first_bloods
-
-
-# ============ 前端页面路由 ============
-@app.route("/")
-def page_root():
-    return send_from_directory(FRONTEND_DIR, "admin.html")
-
-
-@app.route("/<path:filename>")
-def page_files(filename):
-    if filename.startswith("api/"):
-        abort(404)
-    return send_from_directory(FRONTEND_DIR, filename)
-
-
-# ============ 核心修复：登录API ============
-@app.route("/api/login", methods=["POST"])
-def api_login():
-    """✅ 核心修复：确保返回正确的响应格式"""
-    data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
-    password = (data.get("password") or "")
-
-    if not username or not password:
-        return json_response(error="请输入用户名和密码", status=400)
-
-    user = User.query.filter_by(username=username).first()
-    if not user or not check_password_hash(user.password_hash, password):
-        return json_response(error="用户名或密码错误", status=401)
-
-    if user.status != "approved":
-        return json_response(error=f"账号状态：{user.status}（需管理员审核通过后才能登录）", status=403)
-
-    token = create_access_token(identity=user.id)
-
-    payload = {
-        "token": token,
-        "id": user.id,
-        "username": user.username,
-        "is_admin": bool(user.is_admin),
-    }
-
-    return jsonify(
-        {
-            "success": True,
-            "message": "登录成功",
-            "token": token,
-            "user": payload,
-            "data": {
-                "token": token,
-                "user": payload,
-            },
-        }
+        .group_by(Solve.challenge_id)
+        .subquery()
     )
+    rows = (
+        db.session.query(Solve.user_id)
+        .join(sub, (Solve.challenge_id == sub.c.cid) & (Solve.solved_at == sub.c.min_t))
+        .filter(Solve.user_id == uid)
+        .all()
+    )
+    return int(len(rows))
 
 
+# =========================
+# Auth APIs
+# =========================
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "")
+    invitation_code = (data.get("invitation_code") or "").strip().upper()
+
     real_name = (data.get("real_name") or "").strip()
     student_id = (data.get("student_id") or "").strip()
     class_info = (data.get("class_info") or "").strip()
-    invitation_code = (data.get("invitation_code") or "").strip()
 
-    if not username or not password:
-        return json_response(error="用户名和密码不能为空", status=400)
-    if len(username) < 3:
-        return json_response(error="用户名至少 3 位", status=400)
-    if len(password) < 6:
-        return json_response(error="密码至少 6 位", status=400)
+    if not username or not password or not invitation_code:
+        return json_response(False, "请填写所有必填字段", None, 400)
+
+    if len(username) < 3 or len(username) > 20:
+        return json_response(False, "用户名长度3-20位", None, 400)
 
     if User.query.filter_by(username=username).first():
-        return json_response(error="用户名已存在", status=400)
+        return json_response(False, "用户名已存在", None, 400)
 
-    meta = INVITATION_CODES.get(invitation_code)
-    if not meta:
-        return json_response(error="邀请码无效", status=400)
+    user = User(username=username, real_name=real_name, student_id=student_id, class_info=class_info)
 
-    used = User.query.filter_by(invitation_code=invitation_code).count()
-    max_uses = meta.get("max_uses") or 0
-    if max_uses > 0 and used >= max_uses:
-        return json_response(error="邀请码已用尽", status=400)
+    if invitation_code == TEACHER_INVITE:
+        user.is_admin = True
+        user.status = "approved"
+    elif invitation_code == STUDENT_INVITE:
+        user.is_admin = False
+        user.status = "pending"
+    else:
+        return json_response(False, "邀请码无效", None, 400)
 
-    is_teacher = (meta.get("type") == "teacher")
+    if len(password) < 6:
+        return json_response(False, "密码长度至少6位", None, 400)
 
-    user = User(
-        username=username,
-        password_hash=generate_password_hash(password),
-        real_name=real_name or None,
-        student_id=student_id or None,
-        class_info=class_info or None,
-        invitation_code=invitation_code,
-        is_admin=True if is_teacher else False,
-        status="approved" if is_teacher else "pending",
-    )
-
+    user.set_password(password)
     db.session.add(user)
     db.session.commit()
 
-    return jsonify(
-        {
-            "success": True,
-            "message": "注册成功（教师/管理员账号已自动激活）"
-            if is_teacher
-            else "注册申请已提交，等待管理员审核",
-            "data": {
-                "status": user.status,
-                "is_admin": user.is_admin,
-            },
-        }
-    )
+    if user.is_admin:
+        return json_response(True, "注册成功：管理员已启用", None)
+    return json_response(True, "注册成功：等待管理员审核", None)
 
 
-# ============ 其他API端点（保持原有逻辑） ============
-@app.route("/api/user_status", methods=["GET"])
-@jwt_required()
-def api_user_status():
-    u = get_current_user()
-    if not u:
-        return json_response(error="未登录", status=401)
-    entries, challenges = build_scoreboard()
-    total = len(challenges)
-    entry = next((e for e in entries if e["user"].id == u.id), None)
-    solved = entry["solve_count"] if entry else 0
-    score = entry["score"] if entry else 0
-    rank = entry["rank"] if entry else "--"
-    progress = int((solved / total) * 100) if total else 0
-    return json_response(
-        data={
-            "username": u.username,
-            "is_admin": u.is_admin,
-            "score": score,
-            "rank": rank,
-            "progress": progress,
-        }
-    )
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.check_password(password):
+        return json_response(False, "用户名或密码错误", None, 401)
+
+    if user.status != "approved":
+        return json_response(False, "账号未审核通过", None, 403)
+
+    token = create_access_token(identity=user.id)
+    payload = {
+        "token": token,
+        "user": {"id": user.id, "username": user.username, "is_admin": bool(user.is_admin)},
+    }
+    return json_response(True, "登录成功", payload)
 
 
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    return json_response(True, "ok", None)
+
+
+# =========================
+# Challenge / Submit
+# =========================
 @app.route("/api/challenges", methods=["GET"])
 @jwt_required()
 def api_challenges():
-    u = get_current_user()
-    if not u:
-        return json_response(error="未登录", status=401)
-    challenges = (
-        Challenge.query.options(joinedload(Challenge.solves).joinedload(Solve.user))
-        .order_by(Challenge.id.asc())
-        .all()
-    )
-    data = []
-    for c in challenges:
-        solvers = [s.user.username for s in c.solves if s.user]
-        solved = any(s.user_id == u.id for s in c.solves)
-        data.append(
+    uid = get_jwt_identity()
+
+    challenges = Challenge.query.order_by(Challenge.id.asc()).all()
+    solved_ids = set(r[0] for r in db.session.query(Solve.challenge_id).filter_by(user_id=uid).all())
+
+    out = []
+    for ch in challenges:
+        solvers = (
+            db.session.query(User.username)
+            .join(Solve, Solve.user_id == User.id)
+            .filter(Solve.challenge_id == ch.id)
+            .order_by(Solve.solved_at.asc())
+            .limit(3)
+            .all()
+        )
+        solvers = [s[0] for s in solvers]
+
+        file_url = f"/download/{ch.file_path}" if ch.file_path else ""
+
+        out.append(
             {
-                "id": c.id,
-                "title": c.title,
-                "description": c.description,
-                "category": c.category,
-                "points": c.points,
-                "file_url": c.file_path,
+                "id": ch.id,
+                "title": ch.title,
+                "description": ch.description,
+                "category": ch.category,
+                "points": ch.points,
                 "solvers": solvers,
-                "solved": solved,
+                "solved": ch.id in solved_ids,
+                "file_url": file_url,
             }
         )
-    return json_response(data=data)
+
+    return json_response(True, "ok", out)
 
 
 @app.route("/api/submit", methods=["POST"])
 @jwt_required()
 def api_submit():
-    u = get_current_user()
-    if not u:
-        return json_response(error="未登录", status=401)
+    uid = get_jwt_identity()
     data = request.get_json(silent=True) or {}
-    challenge_id = data.get("challenge_id")
-    submitted_flag = (data.get("flag") or "").strip()
+    cid = int(data.get("challenge_id") or 0)
+    flag = (data.get("flag") or "").strip()
 
-    if not challenge_id or not submitted_flag:
-        return json_response(error="题目或 Flag 缺失", status=400)
+    ch = Challenge.query.get(cid)
+    if not ch:
+        return jsonify({"correct": False, "message": "题目不存在"}), 404
 
-    challenge = Challenge.query.get(challenge_id)
-    if not challenge:
-        return json_response(error="题目不存在", status=404)
+    already = Solve.query.filter_by(user_id=uid, challenge_id=cid).first()
+    if already:
+        return jsonify({"correct": True, "message": "你已解出该题"}), 200
 
-    already_solved = Solve.query.filter_by(user_id=u.id, challenge_id=challenge.id).first()
-    is_correct = submitted_flag == challenge.flag
-
-    submission = Submission(
-        user_id=u.id,
-        challenge_id=challenge.id,
-        submitted_flag=submitted_flag,
-        is_correct=is_correct,
+    is_correct = (flag == ch.flag)
+    sub = Submission(
+        user_id=uid,
+        challenge_id=cid,
+        submitted_flag=flag,
+        correct=is_correct,
+        ip=request.headers.get("X-Forwarded-For", request.remote_addr or ""),
     )
-    db.session.add(submission)
+    db.session.add(sub)
 
-    if is_correct and not already_solved:
-        solve = Solve(user_id=u.id, challenge_id=challenge.id)
-        db.session.add(solve)
+    if is_correct:
+        db.session.add(Solve(user_id=uid, challenge_id=cid))
+        db.session.commit()
+        return jsonify({"correct": True, "message": "Flag 正确！"}), 200
 
     db.session.commit()
+    return jsonify({"correct": False, "message": "Flag 错误"}), 200
 
-    return jsonify(
+
+@app.route("/api/user_status", methods=["GET"])
+@jwt_required()
+def api_user_status():
+    uid = get_jwt_identity()
+    rank_map, _ = user_rank_map()
+
+    score = calc_user_score(uid)
+    total = Challenge.query.count()
+    solved = Solve.query.filter_by(user_id=uid).count()
+    progress = int((solved / total) * 100) if total else 0
+
+    return json_response(
+        True,
+        "ok",
         {
-            "correct": bool(is_correct),
-            "msg": "Flag 正确！" if is_correct else "Flag 错误",
-        }
+            "score": score,
+            "rank": rank_map.get(uid, "--"),
+            "progress": progress,
+        },
     )
 
 
-@app.route("/api/logout", methods=["POST"])
-def api_logout():
-    return json_response(message="已退出")
+# =========================
+# Scoreboard + Activity
+# =========================
+@app.route("/api/scoreboard", methods=["GET"])
+def api_scoreboard():
+    _, scored = user_rank_map()
+
+    out = []
+    for i, (username, score, uid) in enumerate(scored, start=1):
+        solved = Solve.query.filter_by(user_id=uid).count()
+        last_solve = (
+            db.session.query(Solve.solved_at)
+            .filter_by(user_id=uid)
+            .order_by(Solve.solved_at.desc())
+            .first()
+        )
+        last_solve = last_solve[0] if last_solve else None
+
+        out.append(
+            {
+                "rank": i,
+                "username": username,
+                "score": score,
+                "solved": solved,
+                "last_active": fmt_local(last_solve, with_date=True, with_sec=False) if last_solve else "-",
+            }
+        )
+    return json_response(True, "ok", out)
 
 
 @app.route("/api/activity", methods=["GET"])
 def api_activity():
-    solves = (
-        Solve.query.options(joinedload(Solve.user), joinedload(Solve.challenge))
-        .order_by(Solve.created_at.desc())
+    rows = (
+        db.session.query(Solve.solved_at, User.username, Challenge.title)
+        .join(User, User.id == Solve.user_id)
+        .join(Challenge, Challenge.id == Solve.challenge_id)
+        .order_by(Solve.solved_at.desc())
         .limit(10)
         .all()
     )
-    data = []
-    for s in solves:
-        if not s.user or not s.challenge:
-            continue
-        data.append(
+
+    out = []
+    for solved_at, username, title in rows:
+        out.append(
             {
-                "username": s.user.username,
-                "challenge": s.challenge.title,
-                "time": format_dt(s.created_at),
+                "username": username,
+                "title": title,
+                "time": fmt_local(solved_at, with_date=False, with_sec=True),
             }
         )
-    return json_response(data=data)
+    return json_response(True, "ok", out)
 
 
-@app.route("/api/scoreboard", methods=["GET"])
-def api_scoreboard():
-    entries, _ = build_scoreboard()
-    data = [
-        {
-            "username": e["user"].username,
-            "score": e["score"],
-            "solved": e["solve_count"],
-        }
-        for e in entries
-    ]
-    return json_response(data=data)
-
-
+# =========================
+# Scoreboard Pro（趋势折线）
+# =========================
 @app.route("/api/scoreboard_pro", methods=["GET"])
 def api_scoreboard_pro():
-    entries, challenges = build_scoreboard()
-    first_bloods = build_first_bloods()
+    now_local = to_local(utcnow())
 
-    challenges_data = [
-        {"id": c.id, "title": c.title, "points": c.points} for c in challenges
-    ]
+    first = db.session.query(Solve.solved_at).order_by(Solve.solved_at.asc()).first()
+    if first and first[0]:
+        start_local = to_local(first[0])
+    else:
+        start_local = now_local - timedelta(hours=1)
 
-    solved_matrix = defaultdict(set)
-    solves = Solve.query.all()
-    for s in solves:
-        solved_matrix[s.user_id].add(s.challenge_id)
+    start_local = floor_to_interval(start_local, 5)
+    end_local = ceil_to_interval(now_local, 5)
 
-    users_data = []
-    for entry in entries:
-        user = entry["user"]
-        matrix = {
-            challenge.id: (4 if challenge.id in solved_matrix[user.id] else 0)
-            for challenge in challenges
-        }
-        users_data.append(
-            {
-                "rank": entry["rank"],
-                "username": user.username,
-                "score": entry["score"],
-                "solve_count": entry["solve_count"],
-                "strongest_cat": entry["strongest_cat"],
-                "first_bloods": first_bloods.get(user.id, 0),
-                "last_update": format_dt(entry["last_update"]),
-                "matrix": matrix,
-            }
-        )
+    labels = make_time_labels(start_local, end_local, 5)
 
-    return jsonify(
-        {
-            "users": users_data,
-            "challenges": challenges_data,
-            "trends": {},
-            "trend_labels": [],
-        }
+    # 取所有 solve + points（时间升序）
+    rows = (
+        db.session.query(Solve.user_id, Solve.solved_at, Challenge.points)
+        .join(Challenge, Challenge.id == Solve.challenge_id)
+        .order_by(Solve.solved_at.asc())
+        .all()
     )
 
+    # 按用户聚合
+    by_user = {}
+    for user_id, solved_at, pts in rows:
+        by_user.setdefault(user_id, []).append((to_local(solved_at), int(pts)))
 
-# ============ 管理员API ============
-@app.route("/api/admin/users", methods=["GET"])
-@jwt_required()
-@admin_required
-def api_admin_users(admin_user):
-    users = User.query.order_by(User.created_at.desc()).all()
-    return json_response(data=[
-        {
-            "id": u.id,
-            "username": u.username,
-            "real_name": u.real_name,
-            "student_id": u.student_id,
-            "class_info": u.class_info,
-            "status": u.status,
-            "is_admin": bool(u.is_admin),
-            "invitation_code": u.invitation_code,
-            "created_at": u.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        for u in users
-    ])
+    # tick 时间列表
+    tick_times = []
+    t = start_local
+    while t <= end_local:
+        tick_times.append(t)
+        t += timedelta(minutes=5)
 
+    # 排名用户
+    _, scored = user_rank_map()
 
-@app.route("/api/admin/registrations", methods=["GET"])
-@jwt_required()
-@admin_required
-def api_admin_regs(admin_user):
-    users = User.query.filter_by(status="pending").order_by(User.created_at.desc()).all()
-    return json_response(data=[
-        {
-            "id": u.id,
-            "username": u.username,
-            "real_name": u.real_name,
-            "student_id": u.student_id,
-            "class_info": u.class_info,
-            "created_at": u.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        for u in users
-    ])
+    users = []
+    for i, (username, score, uid) in enumerate(scored, start=1):
+        solved_cnt = Solve.query.filter_by(user_id=uid).count()
+        last_solve = (
+            db.session.query(Solve.solved_at)
+            .filter_by(user_id=uid)
+            .order_by(Solve.solved_at.desc())
+            .first()
+        )
+        last_solve = last_solve[0] if last_solve else None
 
-
-@app.route("/api/admin/approve/<int:uid>", methods=["POST"])
-@jwt_required()
-@admin_required
-def api_admin_approve(admin_user, uid):
-    u = User.query.get(uid)
-    if not u:
-        return json_response(error="用户不存在", status=404)
-    u.status = "approved"
-    db.session.commit()
-    return json_response(message="已批准")
-
-
-@app.route("/api/admin/reject/<int:uid>", methods=["POST"])
-@jwt_required()
-@admin_required
-def api_admin_reject(admin_user, uid):
-    u = User.query.get(uid)
-    if not u:
-        return json_response(error="用户不存在", status=404)
-    u.status = "rejected"
-    db.session.commit()
-    return json_response(message="已拒绝")
-
-
-@app.route("/api/admin/codes", methods=["GET"])
-@jwt_required()
-@admin_required
-def api_admin_codes(admin_user):
-    out = []
-    for code, meta in INVITATION_CODES.items():
-        used = User.query.filter_by(invitation_code=code).count()
-        max_uses = int(meta.get("max_uses") or 0)
-        remaining = max_uses - used if max_uses > 0 else -1
-        out.append(
+        users.append(
             {
-                "code": code,
-                "label": meta.get("label", ""),
-                "type": meta.get("type", ""),
-                "max_uses": max_uses,
-                "used": used,
-                "remaining": remaining,
+                "rank": i,
+                "username": username,
+                "score": score,
+                "solve_count": solved_cnt,
+                "strongest_cat": strongest_category_for_user(uid),
+                "first_bloods": first_blood_count_for_user(uid),
+                "last_update": fmt_local(last_solve, with_date=True, with_sec=False) if last_solve else "-",
             }
         )
-    return json_response(data=out)
+
+    # 趋势只生成前15（避免太多线）
+    top_user_ids = [uid for (_, _, uid) in scored[:15]]
+    trends = {}
+
+    for uid in top_user_ids:
+        seq = []
+        total = 0
+        lst = by_user.get(uid, [])
+        idx = 0
+        for tick in tick_times:
+            while idx < len(lst) and lst[idx][0] <= tick:
+                total += lst[idx][1]
+                idx += 1
+            seq.append(total)
+
+        u = User.query.get(uid)
+        if u:
+            trends[u.username] = seq
+
+    return jsonify({"trend_labels": labels, "users": users, "trends": trends})
 
 
-@app.route("/api/admin/flags", methods=["GET"])
+# =========================
+# Download（关键修复）
+# =========================
+@app.route("/api/record_download", methods=["POST"])
 @jwt_required()
-@admin_required
-def api_admin_flags(admin_user):
-    challenges = Challenge.query.order_by(Challenge.id.asc()).all()
-    out = []
-    for c in challenges:
-        out.append(
-            {
-                "id": c.id,
-                "title": c.title,
-                "category": c.category,
-                "points": c.points,
-                "difficulty": "Easy" if c.points <= 100 else ("Medium" if c.points <= 200 else "Hard"),
-                "flag": c.flag,
-            }
-        )
-    return json_response(data=out)
+def api_record_download():
+    uid = get_jwt_identity()
+    data = request.get_json(silent=True) or {}
+    cid = int(data.get("challenge_id") or 0)
+
+    ch = Challenge.query.get(cid)
+    if not ch or not ch.file_path:
+        return json_response(False, "该题目无附件", None, 400)
+
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    existed = Download.query.filter_by(user_id=uid, challenge_id=cid).first()
+    if not existed:
+        db.session.add(Download(user_id=uid, challenge_id=cid, ip=ip))
+        db.session.commit()
+
+    return json_response(True, "ok", None)
 
 
-# ============ JWT错误处理 ============
-@jwt.unauthorized_loader
-def unauthorized_callback(callback):
-    return jsonify({"success": False, "error": "未提供有效的认证令牌"}), 401
+@app.route("/download/<path:filename>", methods=["GET"])
+def download_file(filename):
+    user_id = None
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+    except Exception:
+        user_id = None
 
-
-@jwt.invalid_token_loader
-def invalid_token_callback(callback):
-    return jsonify({"success": False, "error": "无效的认证令牌"}), 422
-
-
-@jwt.expired_token_loader
-def expired_token_callback(callback):
-    return jsonify({"success": False, "error": "认证令牌已过期"}), 401
-
-
-# ============ 初始化数据库 ============
-def init_database():
-    with app.app_context():
-        db.create_all()
-
-        # 创建默认管理员账号（如果不存在）
-        admin_user = User.query.filter_by(username="admin").first()
-        if not admin_user:
-            admin_user = User(
-                username="admin",
-                password_hash=generate_password_hash("admin123"),
-                real_name="系统管理员",
-                invitation_code="TEACHER01",
-                is_admin=True,
-                status="approved"
-            )
-            db.session.add(admin_user)
+    ch = Challenge.query.filter_by(file_path=filename).first()
+    if ch and user_id:
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        existed = Download.query.filter_by(user_id=user_id, challenge_id=ch.id).first()
+        if not existed:
+            db.session.add(Download(user_id=user_id, challenge_id=ch.id, ip=ip))
             db.session.commit()
-            print("✅ 已创建默认管理员账号: admin / admin123")
+
+    safe_path = os.path.normpath(filename).replace("\\", "/")
+    if safe_path.startswith(".."):
+        abort(403)
+
+    full = os.path.join(ATTACH_DIR, safe_path)
+    if not os.path.isfile(full):
+        abort(404)
+
+    directory = os.path.dirname(os.path.join(ATTACH_DIR, safe_path))
+    base = os.path.basename(safe_path)
+    return send_from_directory(directory, base, as_attachment=True)
 
 
+# =========================
+# Admin APIs（含作弊检测）
+# =========================
+@app.route("/api/admin/cheat_check", methods=["GET"])
+@jwt_required()
+def api_admin_cheat_check():
+    admin_id = get_jwt_identity()
+    require_admin(admin_id)
+
+    rows = (
+        db.session.query(Solve.user_id, Solve.challenge_id, Solve.solved_at)
+        .join(Challenge, Challenge.id == Solve.challenge_id)
+        .filter(Challenge.file_path != "")
+        .order_by(Solve.solved_at.desc())
+        .all()
+    )
+
+    out = []
+    for uid, cid, solved_at in rows:
+        u = User.query.get(uid)
+        ch = Challenge.query.get(cid)
+        if not u or not ch:
+            continue
+
+        downloaded = Download.query.filter_by(user_id=uid, challenge_id=cid).first()
+        if not downloaded:
+            out.append(
+                {
+                    "username": u.username,
+                    "real_name": u.real_name or "-",
+                    "title": ch.title,
+                    "category": ch.category,
+                    "solved_at": fmt_local(solved_at, with_date=True, with_sec=True),
+                    "status": "未下载附件但已解题",
+                }
+            )
+
+    return json_response(True, "ok", out)
+
+
+# =========================
+# Run
+# =========================
 if __name__ == "__main__":
-    init_database()
-    print("✅ 服务器启动: http://127.0.0.1:5000")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)

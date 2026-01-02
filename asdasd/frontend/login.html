@@ -9,169 +9,69 @@
   <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
-    body {
-      background-color: #020617;
-      background-image:
-        radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
-        radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
-        radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px),
-        radial-gradient(rgba(255,255,255,.4), rgba(255,255,255,.1) 2px, transparent 30px);
+    /* ✅ 你的 CSS 样式原样保留（略） */
+    body { background-color:#020617; background-image:
+      radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+      radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+      radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px),
+      radial-gradient(rgba(255,255,255,.4), rgba(255,255,255,.1) 2px, transparent 30px);
       background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
       background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
       animation: stars 200s linear infinite;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 100vh; display:flex; align-items:center; justify-content:center;
       font-family: 'Microsoft YaHei', sans-serif;
     }
-    @keyframes stars {
-      from { background-position: 0 0; }
-      to { background-position: 10000px 5000px; }
-    }
-    .login-card {
-      position: relative;
-      background: rgba(10, 22, 46, 0.78);
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
-      padding: 40px;
-      border-radius: 16px;
-      border: 1px solid rgba(0, 212, 255, 0.26);
-      width: 450px;
-      box-shadow:
-        0 0 60px rgba(0, 212, 255, 0.16),
-        0 18px 55px rgba(0, 0, 0, 0.45);
+    @keyframes stars { from { background-position: 0 0; } to { background-position: 10000px 5000px; } }
+    .login-card { position: relative; background: rgba(10, 22, 46, 0.78);
+      backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+      padding: 40px; border-radius: 16px; border: 1px solid rgba(0, 212, 255, 0.26);
+      width: 450px; box-shadow: 0 0 60px rgba(0, 212, 255, 0.16), 0 18px 55px rgba(0, 0, 0, 0.45);
       overflow: hidden;
     }
-    .login-card::before {
-      content: "";
-      position: absolute;
-      inset: -2px;
-      pointer-events: none;
-      background:
-        radial-gradient(1000px 260px at 20% 0%, rgba(255,255,255,.20), transparent 60%),
-        radial-gradient(900px 240px at 85% 10%, rgba(0,212,255,.10), transparent 60%),
-        radial-gradient(900px 240px at 35% 100%, rgba(255,255,255,.06), transparent 60%);
-      opacity: .85;
+    .login-card::before { content:""; position:absolute; inset:-2px; pointer-events:none;
+      background: radial-gradient(1000px 260px at 20% 0%, rgba(255,255,255,.20), transparent 60%),
+      radial-gradient(900px 240px at 85% 10%, rgba(0,212,255,.10), transparent 60%),
+      radial-gradient(900px 240px at 35% 100%, rgba(255,255,255,.06), transparent 60%);
+      opacity:.85;
     }
-    .login-card::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      border-radius: 16px;
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.16),
-        inset 0 -1px 0 rgba(255,255,255,.06);
-      opacity: .9;
+    .login-card::after { content:""; position:absolute; inset:0; pointer-events:none; border-radius:16px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(255,255,255,.06); opacity:.9;
     }
     .login-card > * { position: relative; z-index: 1; }
-    .title {
-      font-size: 2rem;
-      font-weight: 900;
-      letter-spacing: 4px;
+    .title { font-size: 2rem; font-weight: 900; letter-spacing: 4px;
       background: linear-gradient(135deg, #00d4ff 0%, #ffffff 50%, #00d4ff 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 30px;
-      text-align: center;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 30px; text-align: center;
     }
-    .form-tabs {
-      display: flex;
-      margin-bottom: 25px;
-      border-bottom: 1px solid #1a3a5a;
+    .form-tabs { display:flex; margin-bottom:25px; border-bottom:1px solid #1a3a5a; }
+    .tab-button { flex:1; padding:12px; background:none; border:none; color:#94a3b8; font-weight:600;
+      transition: all 0.3s ease; cursor:pointer;
     }
-    .tab-button {
-      flex: 1;
-      padding: 12px;
-      background: none;
-      border: none;
-      color: #94a3b8;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      cursor: pointer;
+    .tab-button.active { color:#00d4ff; border-bottom: 2px solid #00d4ff; }
+    .tab-content { display:none; } .tab-content.active{ display:block; }
+    .input-group { border:1px solid rgba(51, 65, 85, .95); border-radius:8px; overflow:hidden;
+      margin-bottom:20px; transition: all .3s ease; background: rgba(15,23,42,.35);
     }
-    .tab-button.active {
-      color: #00d4ff;
-      border-bottom: 2px solid #00d4ff;
-    }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .input-group {
-      border: 1px solid rgba(51, 65, 85, .95);
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 20px;
-      transition: all 0.3s ease;
-      background: rgba(15, 23, 42, .35);
-    }
-    .input-group:focus-within {
-      border-color: rgba(0, 212, 255, .75);
-      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12);
-    }
-    .input-group-text {
-      background: rgba(15, 23, 42, .70);
-      border: none;
-      color: #00d4ff;
-      width: 45px;
-      justify-content: center;
-    }
-    .form-control {
-      background: rgba(15, 23, 42, .55);
-      border: none;
-      color: white;
-      padding: 12px;
-    }
-    .form-control:focus {
-      box-shadow: none;
-      background: rgba(15, 23, 42, .68);
-      color: white;
-    }
-    .form-control::placeholder { color: #64748b; }
-    .btn-primary {
-      background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-      border: none;
-      padding: 12px;
-      font-weight: 600;
-      box-shadow: 0 14px 34px rgba(0,0,0,.25);
+    .input-group:focus-within { border-color: rgba(0,212,255,.75); box-shadow: 0 0 0 2px rgba(0,212,255,0.12); }
+    .input-group-text { background: rgba(15,23,42,.70); border:none; color:#00d4ff; width:45px; justify-content:center; }
+    .form-control { background: rgba(15,23,42,.55); border:none; color:white; padding:12px; }
+    .form-control:focus { box-shadow:none; background: rgba(15,23,42,.68); color:white; }
+    .form-control::placeholder { color:#64748b; }
+    .btn-primary { background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+      border:none; padding:12px; font-weight:600; box-shadow: 0 14px 34px rgba(0,0,0,.25);
       transition: transform .12s ease, filter .12s ease;
     }
     .btn-primary:hover { filter: brightness(1.04); transform: translateY(-1px); }
-    .btn-warning {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      border: none;
-      padding: 12px;
-      font-weight: 600;
-      box-shadow: 0 14px 34px rgba(0,0,0,.25);
+    .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      border:none; padding:12px; font-weight:600; box-shadow: 0 14px 34px rgba(0,0,0,.25);
     }
-    .btn-primary:disabled, .btn-warning:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    .btn-primary:disabled, .btn-warning:disabled { opacity:0.6; cursor:not-allowed; }
+    .admin-toggle { display:flex; align-items:center; justify-content:center; margin-bottom:20px; padding:10px;
+      background: rgba(255,255,255,0.06); border-radius:8px; cursor:pointer; border:1px solid rgba(255,255,255,.08);
     }
-    .admin-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-      padding: 10px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 8px;
-      cursor: pointer;
-      border: 1px solid rgba(255,255,255,.08);
-    }
-    .admin-toggle input { margin-right: 10px; }
-    .admin-toggle label {
-      margin: 0;
-      cursor: pointer;
-      color: #f59e0b;
-      font-weight: 600;
-    }
-    .info-text {
-      font-size: 0.8rem;
-      color: #94a3b8;
-      margin-top: 5px;
-      margin-bottom: 15px;
-    }
+    .admin-toggle input { margin-right:10px; }
+    .admin-toggle label { margin:0; cursor:pointer; color:#f59e0b; font-weight:600; }
+    .info-text { font-size:.8rem; color:#94a3b8; margin-top:5px; margin-bottom:15px; }
   </style>
 </head>
 <body>
@@ -185,6 +85,7 @@
     <button class="tab-button active" onclick="switchTab('login')">登录</button>
     <button class="tab-button" onclick="switchTab('register')">注册</button>
   </div>
+
   <div id="login-tab" class="tab-content active">
     <div class="input-group">
       <span class="input-group-text"><i class="fas fa-user"></i></span>
@@ -203,6 +104,7 @@
       </button>
     </div>
   </div>
+
   <div id="register-tab" class="tab-content">
     <div class="input-group">
       <span class="input-group-text"><i class="fas fa-user"></i></span>
@@ -236,6 +138,7 @@
       </button>
     </div>
   </div>
+
   <div class="mt-4 p-3" style="background: rgba(255,255,255,0.05); border-radius: 8px; border:1px solid rgba(255,255,255,.07);">
     <small class="text-warning">
       <i class="fas fa-shield-alt me-1"></i>
@@ -243,31 +146,41 @@
     </small>
   </div>
 </div>
+
 <script>
-  const API_BASE = `${location.protocol}//${location.hostname}:5000/api`;
+  const API_PORT = 5000;
+  const API_HOST = (location.port === String(API_PORT))
+    ? `${location.protocol}//${location.host}`
+    : `${location.protocol}//${location.hostname}:${API_PORT}`;
+  const API_BASE = `${API_HOST}/api`;
 
   async function apiFetch(url, options = {}) {
     const opt = Object.assign({ cache: 'no-store' }, options);
     const method = (opt.method || 'GET').toUpperCase();
     opt.headers = opt.headers || {};
+
     if (method !== 'GET' && method !== 'HEAD' && opt.body && !opt.headers['Content-Type']) {
       opt.headers['Content-Type'] = 'application/json';
     }
-    return fetch(url, opt);
+
+    const target = url.startsWith('http')
+      ? url
+      : (url.startsWith('/') ? `${API_BASE}${url}` : `${API_BASE}/${url}`);
+
+    return fetch(target, opt);
   }
 
-  function unwrap(json) {
-    return (json && json.data !== undefined) ? json.data : json;
-  }
-
-  // ✅ 关键修复：正确读取 payload.user 里的数据
   function setLoginStorage(payload) {
-    localStorage.setItem('ctf_token', payload.token);
-    const user = payload.user || {};
+    // 兼容：后端返回 {data:{token,user:{...}}}
+    const token = payload?.token || '';
+    const user = payload?.user || {};
+    localStorage.setItem('ctf_token', token);
     localStorage.setItem('user_id', String(user.id || ''));
     localStorage.setItem('username', user.username || '');
     localStorage.setItem('is_admin', user.is_admin ? '1' : '0');
   }
+
+  function unwrap(json){ return (json && json.data !== undefined) ? json.data : json; }
 
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('login-username').addEventListener('keypress', function(e) {
@@ -325,17 +238,13 @@
       button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>处理中...';
     } else {
       button.disabled = false;
-      if (button.id === 'login-btn') {
-        button.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i> 登录';
-      } else if (button.id === 'admin-login-btn') {
-        button.innerHTML = '<i class="fas fa-shield-alt me-2"></i> 管理员登录';
-      } else {
-        button.innerHTML = '<i class="fas fa-user-plus me-2"></i> 注册';
-      }
+      if (button.id === 'login-btn') button.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i> 登录';
+      else if (button.id === 'admin-login-btn') button.innerHTML = '<i class="fas fa-shield-alt me-2"></i> 管理员登录';
+      else button.innerHTML = '<i class="fas fa-user-plus me-2"></i> 注册';
     }
   }
 
-async function login() {
+  async function login() {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
     const loginBtn = document.getElementById('login-btn');
@@ -346,63 +255,59 @@ async function login() {
     setLoading(loginBtn, true);
 
     try {
-        const response = await apiFetch(`${API_BASE}/login`, {
-            method: 'POST',
-            body: JSON.stringify({ username, password })
-        });
+      const response = await apiFetch('/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
 
-        const raw = await response.json().catch(() => ({}));
+      const raw = await response.json().catch(() => ({}));
+      const payload = unwrap(raw) || {};
 
-        // ✅ 修复：直接检查 raw.success 而不是 unwrap
-        if (response.ok && raw.success) {
-            // ✅ 修复：直接使用 raw 而不是 unwrap(raw)
-            setLoginStorage(raw);
-            showSuccess('登录成功！正在跳转...');
-
-            setTimeout(() => {
-                window.location.href = raw.user.is_admin ? 'admin.html' : 'index.html';
-            }, 800);
-        } else {
-            showError(raw.msg || '登录失败');
-        }
+      if (response.ok && payload.token) {
+        localStorage.clear();
+        setLoginStorage(payload);
+        showSuccess('登录成功！正在跳转...');
+        setTimeout(() => {
+          window.location.href = payload.user?.is_admin ? 'admin.html' : 'index.html';
+        }, 800);
+      } else {
+        showError(raw.msg || '登录失败');
+      }
     } catch (error) {
-        console.error('Login error:', error);
-        showError('网络错误，无法连接到服务器');
+      console.error('Login error:', error);
+      showError('网络错误，无法连接到服务器');
     } finally {
-        setLoading(loginBtn, false);
+      setLoading(loginBtn, false);
     }
-}
+  }
+
   async function adminLogin() {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
     const adminBtn = document.getElementById('admin-login-btn');
+
     if (!username) { showError('请输入管理员用户名'); return; }
     if (!password) { showError('请输入密码'); return; }
+
     setLoading(adminBtn, true);
+
     try {
-      const response = await apiFetch(`${API_BASE}/login`, {
+      const response = await apiFetch('/login', {
         method: 'POST',
         body: JSON.stringify({ username, password })
       });
+
       const raw = await response.json().catch(() => ({}));
-      if (response.ok) {
-        const payload = unwrap(raw);
-        if (!payload || !payload.token) {
-          showError('登录响应缺少 token');
-          return;
-        }
-        // ✅ 修复：正确读取 is_admin
-        const user = payload.user || {};
-        if (!user.is_admin) {
-          showError('该账号不是管理员账号');
-          return;
-        }
+      const payload = unwrap(raw) || {};
+
+      if (response.ok && payload.token) {
+        if (!payload.user?.is_admin) { showError('该账号不是管理员账号'); return; }
         localStorage.clear();
         setLoginStorage(payload);
         showSuccess('管理员登录成功！');
         setTimeout(() => window.location.href = 'admin.html', 800);
       } else {
-        showError((raw.msg || raw.error || raw.message) || '登录失败');
+        showError(raw.msg || '登录失败');
       }
     } catch (error) {
       console.error('Admin login error:', error);
@@ -420,6 +325,7 @@ async function login() {
     const classInfo = document.getElementById('class-info').value.trim();
     const invitationCode = document.getElementById('invitation-code').value.trim().toUpperCase();
     const registerBtn = document.getElementById('register-btn');
+
     if (!username || !password || !realName || !studentId || !classInfo || !invitationCode) {
       showError('请填写所有必填字段');
       return;
@@ -432,9 +338,11 @@ async function login() {
       showError('密码长度至少6位');
       return;
     }
+
     setLoading(registerBtn, true);
+
     try {
-      const response = await apiFetch(`${API_BASE}/register`, {
+      const response = await apiFetch('/register', {
         method: 'POST',
         body: JSON.stringify({
           username, password,
@@ -444,13 +352,14 @@ async function login() {
           class_info: classInfo
         })
       });
+
       const raw = await response.json().catch(() => ({}));
       if (response.ok) {
-        showSuccess(raw.msg || raw.message || '注册成功！');
+        showSuccess(raw.msg || '注册成功！');
         document.querySelectorAll('#register-tab .form-control').forEach(i => i.value = '');
         setTimeout(() => switchTab('login'), 800);
       } else {
-        showError((raw.msg || raw.error || raw.message) || '注册失败');
+        showError(raw.msg || '注册失败');
       }
     } catch (error) {
       console.error('Register error:', error);
