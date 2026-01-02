@@ -36,6 +36,8 @@ app.config.update(
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", "dev-only-change-me-in-production"),
     JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=24),
+    JWT_TOKEN_LOCATION=["headers", "query_string"],
+    JWT_QUERY_STRING_NAME="token",
 )
 
 CORS(app)
@@ -224,6 +226,14 @@ def download_file(fname):
     full = os.path.join(STATIC_DIR, fname)
     if not os.path.isfile(full):
         abort(404)
+    user = get_current_user()
+    if user:
+        challenge = Challenge.query.filter_by(file_path=fname).first()
+        if challenge:
+            exists = DownloadLog.query.filter_by(user_id=user.id, challenge_id=challenge.id).first()
+            if not exists:
+                db.session.add(DownloadLog(user_id=user.id, challenge_id=challenge.id))
+                db.session.commit()
     return send_from_directory(STATIC_DIR, fname, as_attachment=True)
 
 
@@ -527,7 +537,7 @@ def api_scoreboard_pro():
         r["first_blood"] = r.get("first_bloods", 0)
         r["last_active"] = r.get("last_update", "-")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     if solve_rows:
         earliest = min(row[2] for row in solve_rows)
         latest = max(row[2] for row in solve_rows)
@@ -543,11 +553,11 @@ def api_scoreboard_pro():
     label_times = []
     cursor = start_time
     while cursor <= end_time:
-        labels.append(cursor.strftime("%Y-%m-%d %H:%M"))
+        labels.append(cursor.strftime("%Y-%m-%d %H:%M:%S"))
         label_times.append(cursor)
         cursor += timedelta(minutes=5)
     if not labels:
-        labels = [now.strftime("%Y-%m-%d %H:%M")]
+        labels = [now.strftime("%Y-%m-%d %H:%M:%S")]
         label_times = [now]
 
     trends = {}
@@ -698,6 +708,8 @@ def api_admin_download_audit(admin_user):
         db.session.query(Solve, User, Challenge)
         .join(User, User.id == Solve.user_id)
         .join(Challenge, Challenge.id == Solve.challenge_id)
+        .filter(Challenge.file_path.isnot(None))
+        .filter(Challenge.file_path != "")
         .order_by(Solve.created_at.desc())
         .all()
     )
