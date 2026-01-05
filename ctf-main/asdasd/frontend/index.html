@@ -617,11 +617,18 @@
         <div class="list-item d-flex justify-content-between align-items-center">
           <div>
             <div class="fw-bold">${idx+1}. ${escapeHtml(u.username)}</div>
-            <div class="small muted">解题 ${u.solved || 0}</div>
+            <div class="small muted">解题 ${u.solve_count ?? u.solved ?? 0}</div>
           </div>
           <div class="fw-bold" style="color:var(--accent)">${u.score || 0}</div>
         </div>
       `).join('');
+    }
+
+    function setupActivityBox(){
+      const box = document.getElementById('activity-list');
+      if(!box) return;
+      box.style.maxHeight = '260px';
+      box.style.overflowY = 'auto';
     }
 
     function cleanupBackdrops(){
@@ -719,6 +726,7 @@
       const modalEl = document.getElementById('challengeModal');
       modalEl.addEventListener('hidden.bs.modal', cleanupBackdrops);
       modalEl.addEventListener('show.bs.modal', cleanupBackdrops);
+      setupActivityBox();
 
       try{
         await loadUserStatus();
