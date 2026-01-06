@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SDHGCTF | 管理员后台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    :root{
+      --bg0:#050b1a;
+      --bg1:#081a2f;
+      --glass: rgba(255,255,255,.08);
+      --stroke: rgba(255,255,255,.18);
+      --accent:#00d4ff;
+      --accent2:#7c4dff;
+      --good:#2ee59d;
+      --warn:#ffb020;
+      --danger:#ff4d6d;
+      --text:#e9f2ff;
+      --muted: rgba(233,242,255,.65);
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+    }
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(900px 500px at 15% 20%, rgba(0,212,255,.18), transparent 60%),
+        radial-gradient(700px 500px at 85% 30%, rgba(124,77,255,.18), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      color: var(--text);
+    }
+    .glass{
+      background: var(--glass);
+      border:1px solid var(--stroke);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+    }
+    .topbar{
+      padding: 14px 0;
+      background: rgba(5,11,26,.55);
+      backdrop-filter: blur(14px);
+      border-bottom:1px solid rgba(255,255,255,.10);
+      position: sticky; top:0; z-index:100;
+    }
+    .btn-soft{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.14);
+      color: var(--text);
+    }
+    .btn-soft:hover{ filter:brightness(1.06); color:var(--text); }
+    .stat{
+      padding: 14px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .stat .k{ color:var(--muted); font-size:.9rem; }
+    .stat .v{ font-size:1.35rem; font-weight:800; color: var(--accent); font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .nav-pills .nav-link{
+      color: var(--muted);
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      margin-right: 10px;
+      border-radius: 999px;
+      padding:.55rem .9rem;
+    }
+    .nav-pills .nav-link.active{
+      color: var(--text);
+      border-color: rgba(0,212,255,.45);
+      background: rgba(0,212,255,.10);
+      box-shadow: 0 0 0 .25rem rgba(0,212,255,.10);
+    }
+    .table{
+      --bs-table-bg: transparent;
+      --bs-table-color: var(--text);
+      --bs-table-border-color: rgba(255,255,255,.10);
+    }
+    .table thead th{
+      color: var(--muted);
+      font-weight:700;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .muted{ color: var(--muted); }
+    .badge-soft{
+      background: rgba(0,212,255,.10);
+      border:1px solid rgba(0,212,255,.25);
+      color: var(--accent);
+      font-weight:700;
+    }
+    .badge-correct{
+      background: rgba(46,229,157,.10);
+      border:1px solid rgba(46,229,157,.25);
+      color: var(--good);
+    }
+    .badge-wrong{
+      background: rgba(255,77,109,.10);
+      border:1px solid rgba(255,77,109,.25);
+      color: var(--danger);
+    }
+    .flag-mono{
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      color: #bfefff;
+    }
+    .form-control{
+      background: rgba(5,11,26,.55);
+      border:1px solid rgba(255,255,255,.14);
+      color: var(--text);
+    }
+    .form-control:focus{
+      background: rgba(5,11,26,.7);
+      border-color: rgba(0,212,255,.5);
+      color: var(--text);
+      box-shadow: 0 0 0 .2rem rgba(0,212,255,.15);
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container-fluid px-3 px-lg-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-3">
+        <span class="btn btn-soft btn-sm">          <i class="fa-solid fa-shield-halved me-2"></i><b>SDHGCTF</b> 管理员后台</span>
+        <span class="btn btn-soft btn-sm">          <i class="fa-solid fa-user-gear me-2"></i><span id="admin-name">管理员</span>
+        </span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-soft btn-sm" href="index.html"><i class="fa-solid fa-house me-2"></i>返回首页</a>
+        <button class="btn btn-soft btn-sm" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-2"></i>退出</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-3 px-lg-4 py-4">
+  <div class="glass p-3">
+    <div class="row g-3">
+      <div class="col-md-3"><div class="stat"><div class="k"><i class="fa-solid fa-user-clock me-2"></i>待审核申请</div><div class="v" id="stat-pending">0</div></div></div>
+      <div class="col-md-3"><div class="stat"><div class="k"><i class="fa-solid fa-users me-2"></i>用户总数</div><div class="v" id="stat-users">0</div></div></div>
+      <div class="col-md-3"><div class="stat"><div class="k"><i class="fa-solid fa-paper-plane me-2"></i>提交总数</div><div class="v" id="stat-submissions">0</div></div></div>
+      <div class="col-md-3"><div class="stat"><div class="k"><i class="fa-regular fa-clock me-2"></i>最后更新</div><div class="v" id="stat-time">--</div></div></div>
+    </div>
+  </div>
+
+  <div class="glass p-3 mt-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <ul class="nav nav-pills" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-pending" type="button">
+          <i class="fa-solid fa-user-check me-2"></i>待审核
+        </button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-users" type="button">
+          <i class="fa-solid fa-users me-2"></i>用户列表
+        </button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-submissions" type="button">
+          <i class="fa-solid fa-paper-plane me-2"></i>提交记录
+        </button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-downloads" type="button">
+          <i class="fa-solid fa-download me-2"></i>下载统计
+        </button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cheat" type="button">
+          <i class="fa-solid fa-exclamation-triangle me-2"></i>作弊检测
+        </button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-codes" type="button">
+          <i class="fa-solid fa-key me-2"></i>邀请码
+        </button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-flags" type="button">
+          <i class="fa-solid fa-flag me-2"></i>Flags
+        </button></li>
+      </ul>
+      <button class="btn btn-soft btn-sm" onclick="refreshAll()">
+        <i class="fa-solid fa-rotate me-2"></i>刷新
+      </button>
+    </div>
+
+    <div class="tab-content mt-3">
+      <!-- 待审核 -->
+      <div class="tab-pane fade show active" id="tab-pending">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>申请时间</th><th>用户名</th><th>真实姓名</th><th>学号</th><th>班级</th><th>操作</th></tr>
+            </thead>
+            <tbody id="pending-body"><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 用户列表 -->
+      <div class="tab-pane fade" id="tab-users">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>创建时间</th><th>用户名</th><th>姓名</th><th>学号</th><th>班级</th><th>邀请码</th><th>状态</th><th>管理员</th></tr>
+            </thead>
+            <tbody id="users-body"><tr><td colspan="8" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 提交记录 -->
+      <div class="tab-pane fade" id="tab-submissions">
+        <div class="d-flex gap-2 mb-3">
+          <input id="sub-search" class="form-control" placeholder="搜索用户名/题目/提交的flag..." oninput="renderSubmissions()">
+          <select id="sub-filter" class="form-control" style="width:auto" onchange="renderSubmissions()">
+            <option value="all">全部</option>
+            <option value="correct">仅正确</option>
+            <option value="wrong">仅错误</option>
+          </select>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>时间</th><th>用户</th><th>姓名</th><th>题目</th><th>提交的 Flag</th><th>结果</th></tr>
+            </thead>
+            <tbody id="submissions-body"><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="muted small mt-2">说明：显示最近 500 条提交记录，包含正确和错误的提交。</div>
+      </div>
+
+      <!-- 下载统计 -->
+      <div class="tab-pane fade" id="tab-downloads">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>ID</th><th>题目</th><th>分类</th><th>附件</th><th>下载次数</th><th>最近下载</th></tr>
+            </thead>
+            <tbody id="downloads-body"><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="muted small mt-2">说明：统计每道题目附件的下载次数和最近下载用户。</div>
+      </div>
+
+      <!-- 作弊检测 -->
+      <div class="tab-pane fade" id="tab-cheat">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>用户名</th><th>真实姓名</th><th>题目</th><th>分类</th><th>解题时间</th><th>状态</th></tr>
+            </thead>
+            <tbody id="cheat-body"><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="cheat-empty" class="text-center py-4" style="display:none;">
+          <i class="fa-solid fa-check-circle fa-2x mb-2" style="color:var(--good)"></i>
+          <p class="muted">暂无可疑记录，所有解题者都下载过附件 ✅</p>
+        </div>
+        <div class="muted small mt-2">说明：检测规则为「解出有附件的题目但从未下载过附件」，可用于排查作弊行为。</div>
+      </div>
+
+      <!-- 邀请码 -->
+      <div class="tab-pane fade" id="tab-codes">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>名称</th><th>邀请码</th><th>类型</th><th>使用量</th><th>剩余</th></tr>
+            </thead>
+            <tbody id="codes-body"><tr><td colspan="5" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Flags -->
+      <div class="tab-pane fade" id="tab-flags">
+        <div class="d-flex gap-2 mb-3">
+          <input id="flag-search" class="form-control" placeholder="搜索题目/分类/flag..." oninput="renderFlags()">
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+            <tr><th>ID</th><th>题目</th><th>分类</th><th>分值</th><th>难度</th><th>Flag</th><th>操作</th></tr>
+            </thead>
+            <tbody id="flags-body"><tr><td colspan="7" class="muted">加载中...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="muted small mt-2">说明：Flag 仅管理员可见（用于出题核对/现场保障）。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ✅ 逻辑修复：优先同源 /api（适配 nginx/https），失败后自动 fallback 到 :5000/api
+  const API_BASE_PRIMARY = `${location.origin}/api`;
+  const API_BASE_FALLBACK = `${location.protocol}//${location.hostname}:5000/api`;
+  let API_BASE = API_BASE_PRIMARY;
+
+  let cacheFlags = [];
+  let cacheSubmissions = [];
+  let cacheDownloads = [];
+
+  async function apiFetch(url, options = {}) {
+    const opt = Object.assign({ cache: 'no-store' }, options);
+    return fetch(url, opt);
+  }
+
+  function unwrap(json){ return (json && json.data !== undefined) ? json.data : json; }
+
+  function escapeHtml(str){
+    return String(str||'')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function getToken(){
+    return (localStorage.getItem('ctf_token') || '').trim();
+  }
+
+  // ✅ 逻辑修复：自动重试（primary -> fallback）
+  async function fetchWithFallback(path, options){
+    const makeUrl = (base) => `${base}${path}`;
+    try{
+      const r1 = await apiFetch(makeUrl(API_BASE_PRIMARY), options);
+      if(r1 && (r1.status !== 404)) { API_BASE = API_BASE_PRIMARY; return r1; }
+      // 404 也可能是没反代 api，继续 fallback
+      const r2 = await apiFetch(makeUrl(API_BASE_FALLBACK), options);
+      API_BASE = API_BASE_FALLBACK;
+      return r2;
+    }catch(e1){
+      const r2 = await apiFetch(makeUrl(API_BASE_FALLBACK), options);
+      API_BASE = API_BASE_FALLBACK;
+      return r2;
+    }
+  }
+
+  async function authFetch(path, options = {}) {
+    const token = getToken();
+    if(!token || token.split('.').length !== 3){
+      localStorage.clear();
+      await Swal.fire({icon:'warning', title:'未检测到有效登录信息', text:'请重新登录', background:'#0a162e', color:'#fff'});
+      window.location.href = 'login.html';
+      throw new Error('No valid token');
+    }
+    const headers = Object.assign({}, options.headers || {});
+    headers['Authorization'] = `Bearer ${token}`;
+    if(!headers['Content-Type'] && options.method && options.method.toUpperCase() !== 'GET'){
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const resp = await fetchWithFallback(path, Object.assign({}, options, { headers }));
+
+    if(resp.status === 401 || resp.status === 422){
+      let detail = '';
+      try {
+        const j = await resp.clone().json();
+        detail = j.msg || j.error || j.message || '';
+      } catch(e){}
+      localStorage.clear();
+      await Swal.fire({
+        icon:'warning',
+        title:'登录已过期 / Token 无效',
+        text: detail || `HTTP ${resp.status}，请重新登录`,
+        background:'#0a162e',
+        color:'#fff'
+      });
+      window.location.href = 'login.html';
+      throw new Error('Auth expired');
+    }
+    return resp;
+  }
+
+  function checkAdmin(){
+    const username = (localStorage.getItem('username') || '').trim();
+    const isAdmin = localStorage.getItem('is_admin') === '1';
+    if(!getToken() || !username){
+      window.location.href = 'login.html';
+      return false;
+    }
+    if(!isAdmin){
+      Swal.fire({icon:'error', title:'无权限', text:'该页面仅管理员可访问', background:'#0a162e', color:'#fff'})
+        .then(()=> window.location.href='index.html');
+      return false;
+    }
+    document.getElementById('admin-name').textContent = username;
+    return true;
+  }
+
+  async function apiGet(path){
+    const resp = await authFetch(path);
+    const json = await resp.json().catch(()=> ({}));
+    if(!resp.ok){
+      throw new Error(json.error || json.message || json.msg || '请求失败');
+    }
+    return unwrap(json);
+  }
+
+  async function apiPost(path){
+    const resp = await authFetch(path, { method:'POST' });
+    const json = await resp.json().catch(()=> ({}));
+    if(!resp.ok){
+      throw new Error(json.error || json.message || json.msg || '请求失败');
+    }
+    return json;
+  }
+
+  async function loadPending(){
+    const list = await apiGet('/admin/registrations');
+    document.getElementById('stat-pending').textContent = Array.isArray(list) ? list.length : 0;
+    const body = document.getElementById('pending-body');
+    if(!Array.isArray(list) || list.length === 0){
+      body.innerHTML = `<tr><td colspan="6" class="muted">暂无待审核申请</td></tr>`;
+      return;
+    }
+    body.innerHTML = list.map(u=>`
+      <tr>
+        <td class="muted">${escapeHtml(u.created_at)}</td>
+        <td><b>${escapeHtml(u.username)}</b></td>
+        <td>${escapeHtml(u.real_name || '-')}</td>
+        <td>${escapeHtml(u.student_id || '-')}</td>
+        <td>${escapeHtml(u.class_info || '-')}</td>
+        <td>
+          <button class="btn btn-sm btn-soft me-2" onclick="approve(${u.id})"><i class="fa-solid fa-check me-1"></i>通过</button>
+          <button class="btn btn-sm btn-soft" onclick="reject(${u.id})"><i class="fa-solid fa-xmark me-1"></i>拒绝</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadUsers(){
+    const list = await apiGet('/admin/users');
+    document.getElementById('stat-users').textContent = Array.isArray(list) ? list.length : 0;
+    const body = document.getElementById('users-body');
+    if(!Array.isArray(list) || list.length === 0){
+      body.innerHTML = `<tr><td colspan="8" class="muted">暂无用户</td></tr>`;
+      return;
+    }
+    body.innerHTML = list.map(u=>`
+      <tr>
+        <td class="muted">${escapeHtml(u.created_at)}</td>
+        <td><b>${escapeHtml(u.username)}</b></td>
+        <td>${escapeHtml(u.real_name || '-')}</td>
+        <td>${escapeHtml(u.student_id || '-')}</td>
+        <td>${escapeHtml(u.class_info || '-')}</td>
+        <td><span class="badge badge-soft">${escapeHtml(u.invitation_code || '-')}</span></td>
+        <td>${escapeHtml(u.status || '-')}</td>
+        <td>${u.is_admin ? '<span class="badge badge-soft">YES</span>' : '<span class="muted">NO</span>'}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadSubmissions(){
+    try {
+      cacheSubmissions = await apiGet('/admin/submissions');
+    } catch(e) {
+      cacheSubmissions = [];
+    }
+    document.getElementById('stat-submissions').textContent = Array.isArray(cacheSubmissions) ? cacheSubmissions.length : 0;
+    renderSubmissions();
+  }
+
+  function renderSubmissions(){
+    const q = (document.getElementById('sub-search').value || '').trim().toLowerCase();
+    const filter = document.getElementById('sub-filter').value;
+    let list = Array.isArray(cacheSubmissions) ? cacheSubmissions : [];
+    if(filter === 'correct'){
+      list = list.filter(x => x.is_correct);
+    } else if(filter === 'wrong'){
+      list = list.filter(x => !x.is_correct);
+    }
+    if(q){
+      list = list.filter(x =>
+        `${x.username} ${x.real_name} ${x.challenge_title} ${x.submitted_flag}`.toLowerCase().includes(q)
+      );
+    }
+    const body = document.getElementById('submissions-body');
+    if(list.length === 0){
+      body.innerHTML = `<tr><td colspan="6" class="muted">无匹配结果</td></tr>`;
+      return;
+    }
+    body.innerHTML = list.map(x=>{
+      const badge = x.is_correct
+        ? '<span class="badge badge-correct"><i class="fa-solid fa-check me-1"></i>正确</span>'
+        : '<span class="badge badge-wrong"><i class="fa-solid fa-xmark me-1"></i>错误</span>';
+      const shortFlag = (x.submitted_flag || '').length > 30
+        ? (x.submitted_flag.slice(0,30) + '...')
+        : (x.submitted_flag || '-');
+      return `
+        <tr>
+          <td class="muted small">${escapeHtml(x.created_at)}</td>
+          <td><b>${escapeHtml(x.username)}</b></td>
+          <td class="muted">${escapeHtml(x.real_name || '')}</td>
+          <td><span class="badge badge-soft">${escapeHtml(x.challenge_title)}</span></td>
+          <td class="flag-mono small" title="${escapeHtml(x.submitted_flag)}">${escapeHtml(shortFlag)}</td>
+          <td>${badge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function loadDownloads(){
+    try {
+      cacheDownloads = await apiGet('/admin/downloads');
+    } catch(e) {
+      cacheDownloads = [];
+    }
+    renderDownloads();
+  }
+
+  function renderDownloads(){
+    const list = Array.isArray(cacheDownloads) ? cacheDownloads : [];
+    const body = document.getElementById('downloads-body');
+    if(list.length === 0){
+      body.innerHTML = `<tr><td colspan="6" class="muted">暂无数据</td></tr>`;
+      return;
+    }
+    body.innerHTML = list.map(x=>{
+      const recent = (x.recent_downloads || []).map(d =>
+        `<div class="small"><i class="fa-solid fa-user me-1"></i>${escapeHtml(d.username)} <span class="muted">${escapeHtml(d.time)}</span></div>`
+      ).join('') || '<span class="muted">-</span>';
+      return `
+        <tr>
+          <td>${x.id}</td>
+          <td><b>${escapeHtml(x.title)}</b></td>
+          <td><span class="badge badge-soft">${escapeHtml(x.category || '')}</span></td>
+          <td class="flag-mono small">${escapeHtml(x.file_path || '-')}</td>
+          <td><span class="badge badge-soft">${Number(x.download_count || 0)}</span></td>
+          <td>${recent}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function loadCheatCheck(){
+    try {
+      const data = await apiGet('/admin/cheat_check');
+      const tbody = document.getElementById('cheat-body');
+      const empty = document.getElementById('cheat-empty');
+
+      if(!data || !data.records || data.records.length === 0){
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      tbody.innerHTML = data.records.map(r => `
+        <tr>
+          <td><b>${escapeHtml(r.username)}</b></td>
+          <td>${escapeHtml(r.real_name || '')}</td>
+          <td>${escapeHtml(r.challenge_title || '')}</td>
+          <td><span class="badge badge-soft">${escapeHtml(r.category || '')}</span></td>
+          <td class="muted">${escapeHtml(r.solve_time || '')}</td>
+          <td><span class="badge badge-wrong">${escapeHtml(r.warning || '异常')}</span></td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      console.error('加载作弊检测失败:', e);
+      document.getElementById('cheat-body').innerHTML = `<tr><td colspan="6" class="muted">加载失败</td></tr>`;
+      document.getElementById('cheat-empty').style.display = 'none';
+    }
+  }
+
+  async function loadCodes(){
+    const list = await apiGet('/admin/codes');
+    const body = document.getElementById('codes-body');
+    if(!Array.isArray(list) || list.length === 0){
+      body.innerHTML = `<tr><td colspan="5" class="muted">暂无邀请码</td></tr>`;
+      return;
+    }
+    body.innerHTML = list.map(x=>`
+      <tr>
+        <td>${escapeHtml(x.label || '-')}</td>
+        <td class="flag-mono">${escapeHtml(x.code)}</td>
+        <td>${escapeHtml(x.type)}</td>
+        <td>${x.used}/${x.max_uses}</td>
+        <td>${x.remaining}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadFlags(){
+    cacheFlags = await apiGet('/admin/flags');
+    renderFlags();
+  }
+
+  function renderFlags(){
+    const q = (document.getElementById('flag-search').value || '').trim().toLowerCase();
+    const list = Array.isArray(cacheFlags) ? cacheFlags : [];
+    const filtered = !q ? list : list.filter(x => (`${x.id} ${x.title} ${x.category} ${x.flag}`.toLowerCase().includes(q)));
+    const body = document.getElementById('flags-body');
+    if(filtered.length === 0){
+      body.innerHTML = `<tr><td colspan="7" class="muted">无匹配结果</td></tr>`;
+      return;
+    }
+    body.innerHTML = filtered.map(x=>{
+      const shortFlag = (x.flag || '').length > 16 ? (x.flag.slice(0,16) + '...') : (x.flag || '-');
+      return `
+        <tr>
+          <td>${x.id}</td>
+          <td><b>${escapeHtml(x.title)}</b></td>
+          <td><span class="badge badge-soft">${escapeHtml(x.category)}</span></td>
+          <td>${x.points}</td>
+          <td>${escapeHtml(x.difficulty)}</td>
+          <td class="flag-mono"><span class="flag-text" data-full="${escapeHtml(x.flag)}">${escapeHtml(shortFlag)}</span></td>
+          <td>
+            <button class="btn btn-sm btn-soft me-2" onclick="toggleFlag(this)"><i class="fa-solid fa-eye me-1"></i>查看</button>
+            <button class="btn btn-sm btn-soft" onclick="copyFlag('${escapeHtml(x.flag)}')"><i class="fa-regular fa-copy me-1"></i>复制</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function toggleFlag(btn){
+    const tr = btn.closest('tr');
+    const span = tr.querySelector('.flag-text');
+    const full = span.getAttribute('data-full') || '';
+    const cur = span.textContent || '';
+    const isShowing = cur === full;
+    if(isShowing){
+      span.textContent = full.length > 16 ? (full.slice(0,16) + '...') : full;
+      btn.innerHTML = `<i class="fa-solid fa-eye me-1"></i>查看`;
+    }else{
+      span.textContent = full;
+      btn.innerHTML = `<i class="fa-solid fa-eye-slash me-1"></i>隐藏`;
+    }
+  }
+
+  async function copyFlag(text){
+    try{
+      await navigator.clipboard.writeText(text);
+      Swal.fire({icon:'success', title:'已复制', timer:900, showConfirmButton:false, background:'#0a162e', color:'#fff'});
+    }catch(e){
+      Swal.fire({icon:'error', title:'复制失败', text:'浏览器可能禁用剪贴板权限', background:'#0a162e', color:'#fff'});
+    }
+  }
+
+  async function approve(uid){
+    await apiPost(`/admin/approve/${uid}`);
+    await refreshAll();
+    Swal.fire({icon:'success', title:'已通过', timer:900, showConfirmButton:false, background:'#0a162e', color:'#fff'});
+  }
+
+  async function reject(uid){
+    await apiPost(`/admin/reject/${uid}`);
+    await refreshAll();
+    Swal.fire({icon:'success', title:'已拒绝', timer:900, showConfirmButton:false, background:'#0a162e', color:'#fff'});
+  }
+
+  async function refreshAll(){
+    try{
+      document.getElementById('stat-time').textContent = new Date().toLocaleTimeString();
+      await Promise.all([
+        loadPending(),
+        loadUsers(),
+        loadSubmissions(),
+        loadDownloads(),
+        loadCheatCheck(),
+        loadCodes(),
+        loadFlags()
+      ]);
+    }catch(e){
+      console.error(e);
+      Swal.fire({icon:'error', title:'加载失败', text:String(e.message||e), background:'#0a162e', color:'#fff'});
+    }
+  }
+
+  async function logout(){
+    try{ await apiFetch(`${API_BASE}/logout`, {method:'POST'}); }catch(e){}
+    localStorage.clear();
+    window.location.href = 'login.html';
+  }
+
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    if(!checkAdmin()) return;
+    await refreshAll();
+  });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
