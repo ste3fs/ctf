@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta
 from functools import wraps
 from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask import Flask, jsonify, request, send_from_directory, abort, make_response
 from flask_sqlalchemy import SQLAlchemy
@@ -159,14 +160,36 @@ def admin_required(fn):
     return wrapper
 
 
-def calc_user_score(uid: int) -> int:
-    total = (
-        db.session.query(func.coalesce(func.sum(Challenge.points), 0))
-        .join(Solve, Solve.challenge_id == Challenge.id)
-        .filter(Solve.user_id == uid)
-        .scalar()
+BONUS_RATES = {1: 15, 2: 10, 3: 5}
+
+
+def apply_bonus(points: int, rank: int | None) -> int:
+    rate = BONUS_RATES.get(rank or 0, 0)
+    total = (Decimal(points or 0) * (Decimal(100 + rate) / Decimal(100)))
+    return int(total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def compute_scores_with_bonus():
+    rows = (
+        db.session.query(Solve.challenge_id, Solve.user_id, Solve.created_at, Challenge.points)
+        .join(Challenge, Challenge.id == Solve.challenge_id)
+        .order_by(Solve.challenge_id.asc(), Solve.created_at.asc())
+        .all()
     )
-    return int(total or 0)
+    score_map = defaultdict(int)
+    first3_map = defaultdict(list)
+    for cid, uid, _t, points in rows:
+        rank = None
+        if uid not in first3_map[cid] and len(first3_map[cid]) < 3:
+            first3_map[cid].append(uid)
+            rank = len(first3_map[cid])
+        score_map[uid] += apply_bonus(int(points or 0), rank)
+    return score_map, first3_map, rows
+
+
+def calc_user_score(uid: int) -> int:
+    score_map, _first3_map, _rows = compute_scores_with_bonus()
+    return int(score_map.get(uid, 0))
 
 
 def ensure_frontend_dir():
@@ -345,15 +368,12 @@ def api_user_status():
         return json_response(error="未登录", status=401)
 
     # 1) 当前积分
-    score = calc_user_score(u.id)
+    score_map, _first3_map, _rows = compute_scores_with_bonus()
+    score = score_map.get(u.id, 0)
 
     # 2) 排名（按积分降序；同分按最后解题时间/注册时间兜底）
     # 这里用 Python 排一下，数据量小（CTF 场景通常几十/几百人）非常稳妥
     users = User.query.filter_by(status="approved").all()
-    score_map = {}
-    for uu in users:
-        score_map[uu.id] = calc_user_score(uu.id)
-
     # 找最后解题时间（用于显示 & 排名兜底）
     last_solve = (
         db.session.query(func.max(Solve.created_at))
@@ -383,7 +403,7 @@ def api_user_status():
     return json_response(data={
         "username": u.username,
         "is_admin": bool(u.is_admin),
-        "score": score,
+        "score": int(score or 0),
         "rank": rank if rank is not None else "--",
         "progress": progress,
         # 可选：顺便把最后活跃时间也给前端（你后面可能用得到）
@@ -403,6 +423,8 @@ def api_challenges():
     solved_ids = {s.challenge_id for s in Solve.query.filter_by(user_id=u.id).all()}
     downloaded_ids = {d.challenge_id for d in DownloadLog.query.filter_by(user_id=u.id).all()}
     challenges = Challenge.query.order_by(Challenge.id.asc()).all()
+    _score_map, first3_map, _rows = compute_scores_with_bonus()
+    user_map = {user.id: user.username for user in User.query.all()}
 
     out = []
     for c in challenges:
@@ -416,7 +438,7 @@ def api_challenges():
             "file_name": os.path.basename(c.file_path) if c.file_path else None,
             "solved": c.id in solved_ids,
             "downloaded": c.id in downloaded_ids,
-            "solvers": [],
+            "solvers": [user_map.get(uid) for uid in first3_map.get(c.id, []) if user_map.get(uid)],
         })
     return json_response(data=out)
 
@@ -500,13 +522,7 @@ def api_scoreboard():
     返回：[{rank, username, score, solve_count}]
     """
     users = User.query.filter_by(status="approved").all()
-    score_rows = (
-        db.session.query(Solve.user_id, func.coalesce(func.sum(Challenge.points), 0))
-        .join(Challenge, Challenge.id == Solve.challenge_id)
-        .group_by(Solve.user_id)
-        .all()
-    )
-    score_map = {uid: int(total or 0) for uid, total in score_rows}
+    score_map, _first3_map, _rows = compute_scores_with_bonus()
     solve_rows = (
         db.session.query(Solve.user_id, func.count(Solve.id))
         .group_by(Solve.user_id)
@@ -581,20 +597,12 @@ def api_scoreboard_pro():
 
     # 每题前三血：按 solve.created_at 排序取前三个用户
     # first3_map[challenge_id] = [user_id1, user_id2, user_id3]
-    solve_rows = (
-        db.session.query(Solve.challenge_id, Solve.user_id, Solve.created_at)
-        .order_by(Solve.challenge_id.asc(), Solve.created_at.asc())
-        .all()
-    )
-    first3_map = defaultdict(list)
+    score_map, first3_map, solve_rows = compute_scores_with_bonus()
     # 同时准备 user->solves 方便统计
     user_solved = defaultdict(set)
     user_last_solve_time = defaultdict(lambda: None)
 
-    for cid, uid, t in solve_rows:
-        if len(first3_map[cid]) < 3:
-            if uid not in first3_map[cid]:
-                first3_map[cid].append(uid)
+    for cid, uid, t, _points in solve_rows:
         user_solved[uid].add(cid)
         # last solve time
         cur = user_last_solve_time.get(uid)
@@ -602,14 +610,6 @@ def api_scoreboard_pro():
             user_last_solve_time[uid] = t
 
     # 统计用户分数 / 解题数
-    score_rows = (
-        db.session.query(Solve.user_id, func.coalesce(func.sum(Challenge.points), 0))
-        .join(Challenge, Challenge.id == Solve.challenge_id)
-        .group_by(Solve.user_id)
-        .all()
-    )
-    score_map = {uid: int(total or 0) for uid, total in score_rows}
-
     solve_cnt_rows = (
         db.session.query(Solve.user_id, func.count(Solve.id))
         .group_by(Solve.user_id)
@@ -619,9 +619,9 @@ def api_scoreboard_pro():
 
     # strongest_cat：按“该用户解出的题目类别累计分”取最高
     cat_score = defaultdict(lambda: defaultdict(int))  # cat_score[uid][cat]+=points
-    for cid, uid, _t in solve_rows:
+    for cid, uid, _t, points in solve_rows:
         cat = chal_cat.get(cid, "") or ""
-        cat_score[uid][cat] += chal_points.get(cid, 0)
+        cat_score[uid][cat] += int(points or 0)
 
     strongest_cat_map = {}
     for u in users:
@@ -664,7 +664,7 @@ def api_scoreboard_pro():
         items.append({
             "uid": u.id,
             "username": u.username,
-            "score": score_map.get(u.id, 0),
+            "score": int(score_map.get(u.id, 0)),
             "solve_count": solve_cnt_map.get(u.id, 0),
             "strongest_cat": strongest_cat_map.get(u.id, "") or "",
             "first_bloods": int(first_blood_cnt.get(u.id, 0)),
